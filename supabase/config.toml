@@ -1,0 +1,4 @@
+project_id = "mfmpvedevevqedlhtnze"
+
+[functions.generate-questions]
+verify_jwt = false
