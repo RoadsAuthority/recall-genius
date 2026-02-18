@@ -1,104 +1,47 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubjects, useCreateSubject, useDeleteSubject } from "@/hooks/useSubjects";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { Plus, BookOpen, Brain, Layers, ArrowRight, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Brain, Layers, ArrowRight, Trash2, Search } from "lucide-react";
+import { DashboardSkeleton } from "@/components/LoadingSkeletons";
 
-interface Subject {
-  id: string;
-  name: string;
-  created_at: string;
-  note_count: number;
-  due_count: number;
-}
 
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [newSubject, setNewSubject] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [totalDue, setTotalDue] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchSubjects = async () => {
-    if (!user) return;
-    
-    const { data: subjectsData, error } = await supabase
-      .from("subjects")
-      .select("id, name, created_at")
-      .order("created_at", { ascending: false });
+  const { data: subjects = [], isLoading: loading } = useSubjects();
+  const createSubjectMutation = useCreateSubject();
+  const deleteSubjectMutation = useDeleteSubject();
 
-    if (error) {
-      toast.error("Failed to load subjects");
-      return;
-    }
+  // Filter subjects based on search query
+  const filteredSubjects = subjects.filter((subject) =>
+    subject.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-    // Get note counts and due counts for each subject
-    const enriched: Subject[] = await Promise.all(
-      (subjectsData || []).map(async (s) => {
-        const { count: noteCount } = await supabase
-          .from("notes")
-          .select("*", { count: "exact", head: true })
-          .eq("subject_id", s.id);
-
-        const { count: dueCount } = await supabase
-          .from("note_blocks")
-          .select("*, notes!inner(subject_id)", { count: "exact", head: true })
-          .eq("notes.subject_id", s.id)
-          .lte("next_review", new Date().toISOString());
-
-        return {
-          ...s,
-          note_count: noteCount || 0,
-          due_count: dueCount || 0,
-        };
-      })
-    );
-
-    setSubjects(enriched);
-    setTotalDue(enriched.reduce((sum, s) => sum + s.due_count, 0));
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchSubjects();
-  }, [user]);
+  const totalDue = subjects.reduce((sum, s) => sum + s.due_count, 0);
+  const totalNotes = subjects.reduce((sum, s) => sum + s.note_count, 0);
 
   const createSubject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newSubject.trim() || !user) return;
 
-    const { error } = await supabase
-      .from("subjects")
-      .insert({ name: newSubject.trim(), user_id: user.id });
-
-    if (error) {
-      toast.error("Failed to create subject");
-      return;
-    }
-
+    await createSubjectMutation.mutateAsync(newSubject.trim());
     setNewSubject("");
     setDialogOpen(false);
-    toast.success("Subject created!");
-    fetchSubjects();
   };
 
   const deleteSubject = async (id: string, name: string) => {
     if (!confirm(`Delete "${name}" and all its notes?`)) return;
-    const { error } = await supabase.from("subjects").delete().eq("id", id);
-    if (error) {
-      toast.error("Failed to delete subject");
-      return;
-    }
-    toast.success("Subject deleted");
-    fetchSubjects();
+    await deleteSubjectMutation.mutateAsync(id);
   };
 
   return (
@@ -130,30 +73,43 @@ const Dashboard = () => {
                 </DialogHeader>
                 <form onSubmit={createSubject} className="space-y-4 mt-2">
                   <Input
-                    placeholder="e.g., Organic Chemistry, Contract Law..."
+                    placeholder="Subject name..."
                     value={newSubject}
                     onChange={(e) => setNewSubject(e.target.value)}
                     autoFocus
                   />
-                  <Button type="submit" className="w-full">Create</Button>
+                  <Button type="submit" className="w-full" disabled={createSubjectMutation.isPending}>
+                    {createSubjectMutation.isPending ? "Creating..." : "Create"}
+                  </Button>
                 </form>
               </DialogContent>
             </Dialog>
           </div>
         </div>
 
+        {/* Search bar */}
+        {subjects.length > 0 && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search subjects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        )}
+
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-4">
           <StatCard icon={<BookOpen className="h-5 w-5" />} label="Subjects" value={subjects.length} />
-          <StatCard icon={<Layers className="h-5 w-5" />} label="Total Notes" value={subjects.reduce((s, sub) => s + sub.note_count, 0)} />
+          <StatCard icon={<Layers className="h-5 w-5" />} label="Total Notes" value={totalNotes} />
           <StatCard icon={<Brain className="h-5 w-5" />} label="Due for Review" value={totalDue} highlight={totalDue > 0} />
         </div>
 
         {/* Subjects grid */}
         {loading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
-          </div>
+          <DashboardSkeleton />
         ) : subjects.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-12">
@@ -168,7 +124,16 @@ const Dashboard = () => {
           </Card>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {subjects.map((subject) => (
+            {filteredSubjects.length === 0 && searchQuery ? (
+              <Card className="col-span-full border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="font-display font-semibold text-lg mb-2">No subjects found</h3>
+                  <p className="text-muted-foreground text-sm">Try a different search term</p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredSubjects.map((subject) => (
               <Card key={subject.id} className="group hover:shadow-elevated transition-all duration-200 cursor-pointer relative">
                 <button
                   onClick={(e) => { e.stopPropagation(); deleteSubject(subject.id, subject.name); }}
@@ -193,7 +158,8 @@ const Dashboard = () => {
                   </CardContent>
                 </Link>
               </Card>
-            ))}
+              ))
+            )}
           </div>
         )}
       </div>

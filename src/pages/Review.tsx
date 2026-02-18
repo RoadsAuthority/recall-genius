@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Brain, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { REVIEW_CONFIG } from "@/lib/config";
 
 interface ReviewItem {
   block_id: string;
@@ -35,7 +36,7 @@ const Review = () => {
       .select("id, content, note_id, notes!inner(subject_id, subjects!inner(user_id))")
       .lte("next_review", new Date().toISOString())
       .order("next_review", { ascending: true })
-      .limit(20);
+      .limit(REVIEW_CONFIG.REVIEW_SESSION_LIMIT);
 
     if (error) {
       console.error(error);
@@ -76,16 +77,16 @@ const Review = () => {
 
     switch (difficulty) {
       case "forgot":
-        nextReview = new Date(now.getTime() + 1 * 24 * 60 * 60 * 1000); // 1 day
-        confidenceChange = -1;
+        nextReview = new Date(now.getTime() + REVIEW_CONFIG.INTERVALS.FORGOT);
+        confidenceChange = REVIEW_CONFIG.CONFIDENCE_CHANGES.FORGOT;
         break;
       case "hard":
-        nextReview = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days
-        confidenceChange = 0;
+        nextReview = new Date(now.getTime() + REVIEW_CONFIG.INTERVALS.HARD);
+        confidenceChange = REVIEW_CONFIG.CONFIDENCE_CHANGES.HARD;
         break;
       case "easy":
-        nextReview = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000); // 7 days
-        confidenceChange = 1;
+        nextReview = new Date(now.getTime() + REVIEW_CONFIG.INTERVALS.EASY);
+        confidenceChange = REVIEW_CONFIG.CONFIDENCE_CHANGES.EASY;
         break;
     }
 
@@ -97,7 +98,10 @@ const Review = () => {
       .maybeSingle();
 
     const currentConfidence = blockData?.confidence_score || 0;
-    const newConfidence = Math.max(0, Math.min(5, currentConfidence + confidenceChange));
+    const newConfidence = Math.max(
+      REVIEW_CONFIG.MIN_CONFIDENCE,
+      Math.min(REVIEW_CONFIG.MAX_CONFIDENCE, currentConfidence + confidenceChange)
+    );
 
     await supabase
       .from("note_blocks")
@@ -120,8 +124,13 @@ const Review = () => {
   if (loading) {
     return (
       <AppLayout>
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent" />
+        <div className="max-w-2xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+            <div className="h-5 w-16 bg-muted animate-pulse rounded" />
+          </div>
+          <div className="w-full bg-muted rounded-full h-2 animate-pulse" />
+          <div className="h-64 bg-muted animate-pulse rounded-lg" />
         </div>
       </AppLayout>
     );
@@ -216,7 +225,9 @@ const Review = () => {
               className="flex flex-col py-4 h-auto border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
             >
               <span className="font-display font-semibold">Forgot</span>
-              <span className="text-xs text-muted-foreground">Review in 1 day</span>
+              <span className="text-xs text-muted-foreground">
+                Review in {REVIEW_CONFIG.INTERVALS.FORGOT / (24 * 60 * 60 * 1000)} day
+              </span>
             </Button>
             <Button
               variant="outline"
@@ -224,7 +235,9 @@ const Review = () => {
               className="flex flex-col py-4 h-auto border-warning/30 hover:bg-warning/10 hover:text-warning"
             >
               <span className="font-display font-semibold">Hard</span>
-              <span className="text-xs text-muted-foreground">Review in 3 days</span>
+              <span className="text-xs text-muted-foreground">
+                Review in {REVIEW_CONFIG.INTERVALS.HARD / (24 * 60 * 60 * 1000)} days
+              </span>
             </Button>
             <Button
               variant="outline"
@@ -232,7 +245,9 @@ const Review = () => {
               className="flex flex-col py-4 h-auto border-success/30 hover:bg-success/10 hover:text-success"
             >
               <span className="font-display font-semibold">Easy</span>
-              <span className="text-xs text-muted-foreground">Review in 7 days</span>
+              <span className="text-xs text-muted-foreground">
+                Review in {REVIEW_CONFIG.INTERVALS.EASY / (24 * 60 * 60 * 1000)} days
+              </span>
             </Button>
           </div>
         )}
