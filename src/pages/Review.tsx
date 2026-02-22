@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Brain, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock } from "lucide-react";
 import { REVIEW_CONFIG } from "@/lib/config";
 
 interface ReviewItem {
@@ -17,8 +18,9 @@ interface ReviewItem {
 
 const Review = () => {
   const { user } = useAuth();
+  const { isPremium } = useProfile();
   const navigate = useNavigate();
-  const [items, setItems] = useState<ReviewItem[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -31,12 +33,19 @@ const Review = () => {
 
   const fetchReviewItems = async () => {
     // Get blocks due for review that belong to this user
-    const { data: blocks, error } = await supabase
+    let query = supabase
       .from("note_blocks")
-      .select("id, content, note_id, notes!inner(subject_id, subjects!inner(user_id))")
-      .lte("next_review", new Date().toISOString())
-      .order("next_review", { ascending: true })
-      .limit(REVIEW_CONFIG.REVIEW_SESSION_LIMIT);
+      .select("id, content, confidence_score, next_review, note_id, notes!inner(subject_id, subjects!inner(user_id))")
+      .lte("next_review", new Date().toISOString());
+
+    // Premium: Prioritize low confidence blocks
+    if (isPremium) {
+      query = query.order("confidence_score", { ascending: true });
+    } else {
+      query = query.order("next_review", { ascending: true });
+    }
+
+    const { data: blocks, error } = await query.limit(REVIEW_CONFIG.REVIEW_SESSION_LIMIT);
 
     if (error) {
       console.error(error);
@@ -57,9 +66,11 @@ const Review = () => {
       .select("id, question, block_id")
       .in("block_id", blockIds);
 
-    const reviewItems: ReviewItem[] = blocks.map((block) => ({
+    const reviewItems = blocks.map((block) => ({
       block_id: block.id,
       block_content: block.content,
+      confidence_score: block.confidence_score,
+      next_review: block.next_review,
       questions: (questions || []).filter((q) => q.block_id === block.id),
     }));
 
@@ -209,11 +220,32 @@ const Review = () => {
         </Button>
 
         {showAnswer && (
-          <Card className="border-accent/20 bg-accent/5">
-            <CardContent className="p-6">
-              <p className="text-base leading-relaxed whitespace-pre-wrap">{current.block_content}</p>
-            </CardContent>
-          </Card>
+          <div className="space-y-4">
+            <Card className="border-accent/20 bg-accent/5">
+              <CardContent className="p-6">
+                <p className="text-base leading-relaxed whitespace-pre-wrap">{current.block_content}</p>
+              </CardContent>
+            </Card>
+
+            {isPremium && (
+              <div className="flex flex-col gap-3">
+                {current.confidence_score < 40 && (
+                  <div className="flex items-center gap-3 p-3 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    <div>
+                      <span className="font-bold">Weakness Detected:</span> You've struggled with this concept recently. We'll prioritize it in your upcoming sessions.
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 p-3 bg-accent/10 border border-accent/20 rounded-lg text-accent text-sm">
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <div>
+                    <span className="font-bold">Forgetfulness Prediction:</span> Based on your recall patterns, you're likely to forget this in about <span className="underline decoration-dotted">{Math.max(1, Math.floor(current.confidence_score / 15))} days</span> if not reviewed.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Difficulty buttons */}

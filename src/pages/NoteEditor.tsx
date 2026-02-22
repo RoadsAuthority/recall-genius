@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +21,8 @@ import {
 const NoteEditor = () => {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPremium } = useProfile();
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -28,6 +32,8 @@ const NoteEditor = () => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isInitialLoadRef = useRef(true);
+  const [selection, setSelection] = useState<{ text: string; x: number; y: number } | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!noteId) return;
@@ -142,6 +148,41 @@ const NoteEditor = () => {
 
       if (error) throw error;
 
+      // Extract and save definitions automatically
+      const definitionsToInsert = [];
+      const extractionPatterns = [
+        /([^.]+?)\s+is\s+([^.]+?)(?:\.|$)/i,
+        /([^.]+?)\s+refers to\s+([^.]+?)(?:\.|$)/i,
+        /([^.]+?)\s+is defined as\s+([^.]+?)(?:\.|$)/i,
+        /([^.]+?)\s+can be described as\s+([^.]+?)(?:\.|$)/i,
+        /([^.]+?)\s+is the process of\s+([^.]+?)(?:\.|$)/i,
+      ];
+
+      for (const block of insertedBlocks) {
+        for (const pattern of extractionPatterns) {
+          const match = block.content.match(pattern);
+          if (match && match[1] && match[2]) {
+            definitionsToInsert.push({
+              user_id: (await supabase.auth.getUser()).data.user?.id,
+              subject_id: subjectId,
+              term: match[1].trim(),
+              definition: match[2].trim(),
+              source_block_id: block.id,
+            });
+            break; // Move to next block once a definition is found
+          }
+        }
+      }
+
+      if (definitionsToInsert.length > 0) {
+        // Delete old definitions for these blocks to avoid duplicates on resave
+        const blockIds = insertedBlocks.map((b) => b.id);
+        await supabase.from("definitions").delete().in("source_block_id", blockIds);
+
+        const { error: defError } = await supabase.from("definitions").insert(definitionsToInsert);
+        if (defError) console.error("Error saving definitions:", defError);
+      }
+
       if (!silent) {
         toast.success("Note saved! Generating recall questions...");
       }
@@ -194,7 +235,86 @@ const NoteEditor = () => {
     } finally {
       setSaving(false);
     }
-  }, [noteId, content, title]);
+  }, [noteId, content, title, subjectId]);
+
+  const handleTextSelection = () => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const selectedText = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd).trim();
+    if (selectedText.length > 0) {
+      // Basic positioning for the popup (simplified)
+      const rect = textarea.getBoundingClientRect();
+      setSelection({
+        text: selectedText,
+        x: rect.left + 20,
+        y: rect.top + 50,
+      });
+    } else {
+      setSelection(null);
+    }
+  };
+
+  const saveConcept = async (type: string) => {
+    if (!selection || !noteId || !subjectId) return;
+
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error("Not authenticated");
+
+      // We need to find which block this concept belongs to (optional, but good for context)
+      // For now, we'll just save it without block_id if it's too complex to map back from a large textarea
+      const term = selection.text.split(/[:\-\n]/)[0].trim().substring(0, 50);
+      const description = selection.text;
+
+      const { error } = await supabase.from("concepts").insert({
+        user_id: user.user.id,
+        subject_id: subjectId,
+        type,
+        term,
+        description,
+      });
+
+      if (error) throw error;
+
+      toast.success(`Saved as ${type}`);
+      setSelection(null);
+    } catch (error) {
+      console.error("Error saving concept:", error);
+      toast.error("Failed to save concept");
+    }
+  };
+
+  const handleExplainAI = async (level: "beginner" | "expert") => {
+    if (!isPremium) {
+      toast.error("Explanation AI is a Premium feature!", {
+        description: "Upgrade to Premium to get AI-powered explanations."
+      });
+      return;
+    }
+
+    if (!selection) return;
+
+    toast.loading(`Generating AI explanation (${level})...`);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("explain-concept", {
+        body: { term: selection.text, level },
+      });
+
+      if (error) throw error;
+
+      toast.dismiss();
+      // Show explanation in a dialog or toast (using toast for speed now)
+      toast.success("AI Explanation", {
+        description: data.explanation,
+        duration: 10000,
+      });
+    } catch (err) {
+      toast.dismiss();
+      toast.error("AI explanation failed");
+    }
+  };
 
   if (loading) {
     return (
@@ -267,13 +387,86 @@ const NoteEditor = () => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg border p-1">
+        <div className="bg-card rounded-lg border p-1 relative">
           <Textarea
+            ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
+            onSelect={handleTextSelection}
             placeholder="Start typing your notes here...&#10;&#10;Each paragraph (separated by a blank line) becomes a block that generates recall questions.&#10;&#10;Tip: Write clear, focused paragraphs. Each paragraph will be converted into reviewable blocks with AI-generated questions."
             className="min-h-[60vh] border-0 focus-visible:ring-0 resize-none text-base leading-relaxed font-mono"
           />
+
+          {selection && (
+            <div
+              className="absolute z-50 bg-popover text-popover-foreground border rounded-md shadow-lg p-1 flex flex-col gap-1 w-48"
+              style={{ top: "10px", right: "10px" }} // Fixed position for simplicity in textarea
+            >
+              <div className="text-[10px] font-bold px-2 py-1 text-muted-foreground uppercase">Save Selection As:</div>
+              <button
+                onClick={() => saveConcept("definition")}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Definition
+              </button>
+              <button
+                onClick={() => saveConcept("importance")}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Important Concept
+              </button>
+              <button
+                onClick={() => saveConcept("characteristic")}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Characteristic
+              </button>
+              <button
+                onClick={() => saveConcept("example")}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Example
+              </button>
+              <button
+                onClick={() => saveConcept("formula")}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Formula
+              </button>
+              <div className="border-t my-1" />
+              <div className="text-[10px] font-bold px-2 py-1 text-accent uppercase flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Premium AI
+              </div>
+              <button
+                onClick={() => handleExplainAI("beginner")}
+                className={`text-left px-2 py-1 text-sm rounded-sm transition-colors ${!isPremium ? 'opacity-50 grayscale' : 'hover:bg-accent'}`}
+                type="button"
+              >
+                Explain like I'm 5
+              </button>
+              <button
+                onClick={() => handleExplainAI("expert")}
+                className={`text-left px-2 py-1 text-sm rounded-sm transition-colors ${!isPremium ? 'opacity-50 grayscale' : 'hover:bg-accent'}`}
+                type="button"
+              >
+                Expert Explanation
+              </button>
+              <div className="border-t my-1" />
+              <button
+                onClick={() => setSelection(null)}
+                className="text-left px-2 py-1 text-xs text-muted-foreground hover:bg-accent rounded-sm transition-colors"
+                type="button"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center justify-between text-sm text-muted-foreground">

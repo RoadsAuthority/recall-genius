@@ -12,6 +12,9 @@ import Dashboard from "./pages/Dashboard";
 import SubjectNotes from "./pages/SubjectNotes";
 import NoteEditor from "./pages/NoteEditor";
 import Review from "./pages/Review";
+import Definitions from "./pages/Definitions";
+import Profile from "./pages/Profile";
+import ExamMode from "./pages/ExamMode";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -39,6 +42,9 @@ const App = () => (
               <Route path="/subject/:subjectId" element={<ProtectedRoute><SubjectNotes /></ProtectedRoute>} />
               <Route path="/note/:noteId" element={<ProtectedRoute><NoteEditor /></ProtectedRoute>} />
               <Route path="/review" element={<ProtectedRoute><Review /></ProtectedRoute>} />
+              <Route path="/definitions" element={<ProtectedRoute><Definitions /></ProtectedRoute>} />
+              <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+              <Route path="/exam" element={<ProtectedRoute><ExamMode /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
