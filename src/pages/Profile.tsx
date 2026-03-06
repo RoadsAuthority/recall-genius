@@ -107,21 +107,29 @@ const Profile = () => {
         }
     };
 
-    const togglePremium = async () => {
+    const [upgrading, setUpgrading] = useState(false);
+
+    const handleUpgrade = async () => {
         if (!user) return;
-        const newPlan = profile.plan_type === "free" ? "premium" : "free";
+        setUpgrading(true);
 
         try {
-            const { error } = await supabase
-                .from("profiles")
-                .update({ plan_type: newPlan })
-                .eq("id", user.id);
+            const { data, error } = await supabase.functions.invoke("create-paddle-checkout", {
+                body: {
+                    priceId: "pri_placeholder", // Replace with actual Paddle Price ID
+                    productId: "pro_placeholder" // Replace with actual Paddle Product ID
+                }
+            });
 
             if (error) throw error;
-            setProfile({ ...profile, plan_type: newPlan });
-            toast.success(newPlan === "premium" ? "Welcome to Premium!" : "Plan changed to Free");
+            if (data?.url) {
+                window.location.href = data.url;
+            }
         } catch (error) {
-            toast.error("Failed to change plan");
+            console.error("Upgrade error:", error);
+            toast.error("Failed to start checkout process");
+        } finally {
+            setUpgrading(false);
         }
     };
 
@@ -260,9 +268,19 @@ const Profile = () => {
                                 variant={profile.plan_type === "premium" ? "outline" : "default"}
                                 size="lg"
                                 className="min-w-[180px] font-bold"
-                                onClick={togglePremium}
+                                onClick={handleUpgrade}
+                                disabled={upgrading || profile.plan_type === "premium"}
                             >
-                                {profile.plan_type === "premium" ? "Switch to Free" : "Upgrade to Premium"}
+                                {upgrading ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Redirecting...
+                                    </>
+                                ) : profile.plan_type === "premium" ? (
+                                    "Premium Active"
+                                ) : (
+                                    "Upgrade to Premium"
+                                )}
                             </Button>
                         </CardContent>
                     </Card>
