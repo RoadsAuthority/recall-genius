@@ -285,14 +285,33 @@ const NoteEditor = () => {
     }
   };
 
-  const handleExplainAI = async (level: "beginner" | "expert") => {
-    if (!isPremium) {
-      toast.error("Explanation AI is a Premium feature!", {
-        description: "Upgrade to Premium to get AI-powered explanations."
-      });
+  const handleSummarize = async () => {
+    if (!content.trim()) {
+      toast.error("Add some content first to summarize");
       return;
     }
 
+    toast.loading("Generating AI summary...");
+
+    try {
+      const { data, error } = await supabase.functions.invoke("summarize-content", {
+        body: { content },
+      });
+
+      if (error) throw error;
+
+      toast.dismiss();
+      toast.success("AI Summary", {
+        description: data.summary,
+        duration: 15000,
+      });
+    } catch (err) {
+      toast.dismiss();
+      toast.error("AI summarization failed");
+    }
+  };
+
+  const handleExplainAI = async (level: "beginner" | "expert") => {
     if (!selection) return;
 
     toast.loading(`Generating AI explanation (${level})...`);
@@ -380,6 +399,10 @@ const NoteEditor = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="outline" size="sm" onClick={handleSummarize} className="gap-2 text-accent border-accent/20 hover:bg-accent/5">
+              <Sparkles className="h-4 w-4" />
+              <span className="hidden sm:inline">AI Summarize</span>
+            </Button>
             <Button onClick={() => saveNote(false)} disabled={saving} className="gap-2">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {saving ? "Saving..." : "Save & Generate"}
@@ -441,18 +464,18 @@ const NoteEditor = () => {
               <div className="border-t my-1" />
               <div className="text-[10px] font-bold px-2 py-1 text-accent uppercase flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Premium AI
+                AI Insight
               </div>
               <button
                 onClick={() => handleExplainAI("beginner")}
-                className={`text-left px-2 py-1 text-sm rounded-sm transition-colors ${!isPremium ? 'opacity-50 grayscale' : 'hover:bg-accent'}`}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
                 type="button"
               >
                 Explain like I'm 5
               </button>
               <button
                 onClick={() => handleExplainAI("expert")}
-                className={`text-left px-2 py-1 text-sm rounded-sm transition-colors ${!isPremium ? 'opacity-50 grayscale' : 'hover:bg-accent'}`}
+                className="text-left px-2 py-1 text-sm hover:bg-accent rounded-sm transition-colors"
                 type="button"
               >
                 Expert Explanation

@@ -25,18 +25,31 @@ const Review = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState(false);
+  const [practiceMode, setPracticeMode] = useState(false);
 
   useEffect(() => {
     if (!user) return;
-    fetchReviewItems();
+
+    // Check if we should be in practice mode
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "practice") {
+      setPracticeMode(true);
+    }
+
+    fetchReviewItems(params.get("mode") === "practice");
   }, [user]);
 
-  const fetchReviewItems = async () => {
-    // Get blocks due for review that belong to this user
+  const fetchReviewItems = async (isPractice: boolean) => {
+    setLoading(true);
+    // Get blocks for review
     let query = supabase
       .from("note_blocks")
-      .select("id, content, confidence_score, next_review, note_id, notes!inner(subject_id, subjects!inner(user_id))")
-      .lte("next_review", new Date().toISOString());
+      .select("id, content, confidence_score, next_review, note_id, notes!inner(subject_id, subjects!inner(user_id))");
+
+    // Only filter by due date if NOT in practice mode
+    if (!isPractice) {
+      query = query.lte("next_review", new Date().toISOString());
+    }
 
     // Premium: Prioritize low confidence blocks
     if (isPremium) {
@@ -155,12 +168,20 @@ const Review = () => {
           <h1 className="text-3xl font-display font-bold mb-3">All caught up!</h1>
           <p className="text-muted-foreground mb-8">
             {items.length === 0
-              ? "No blocks are due for review. Create some notes first!"
-              : "You've completed your review session. Great work!"}
+              ? (practiceMode ? "You don't have any notes to practice yet. Create some notes first!" : "No blocks are due for review. You can still practice all your notes anytime!")
+              : "You've completed your session. Great work!"}
           </p>
-          <Button onClick={() => navigate("/dashboard")} className="gap-2">
-            Back to Dashboard
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => navigate("/dashboard")} variant="outline">
+              Back to Dashboard
+            </Button>
+            {!practiceMode && items.length === 0 && (
+              <Button onClick={() => { setCompleted(false); setPracticeMode(true); fetchReviewItems(true); }} className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                Start Practice Session
+              </Button>
+            )}
+          </div>
         </div>
       </AppLayout>
     );
@@ -174,7 +195,12 @@ const Review = () => {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-display font-bold flex items-center gap-2">
             <Brain className="h-6 w-6 text-accent" />
-            Review
+            {practiceMode ? "Practice" : "Review"}
+            {practiceMode && (
+              <span className="text-[10px] bg-accent/10 text-accent px-2 py-0.5 rounded-full uppercase tracking-wider ml-1">
+                Practice Mode
+              </span>
+            )}
           </h1>
           <span className="text-sm text-muted-foreground font-medium">
             {currentIndex + 1} / {items.length}

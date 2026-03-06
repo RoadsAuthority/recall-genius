@@ -10,8 +10,8 @@ serve(async (req) => {
 
   try {
     const { blocks } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const AI_GATEWAY_TOKEN = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("AI_GATEWAY_TOKEN");
+    if (!AI_GATEWAY_TOKEN) throw new Error("AI gateway token is not configured");
 
     if (!blocks || !Array.isArray(blocks) || blocks.length === 0) {
       return new Response(JSON.stringify({ error: "No blocks provided" }), {
@@ -20,14 +20,14 @@ serve(async (req) => {
       });
     }
 
-    const blocksText = blocks.map((b: { id: string; content: string }, i: number) => 
+    const blocksText = blocks.map((b: { id: string; content: string }, i: number) =>
       `Block ${i + 1} (ID: ${b.id}): "${b.content}"`
     ).join("\n");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${AI_GATEWAY_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -106,7 +106,7 @@ Rules:
 
     const data = await response.json();
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    
+
     if (!toolCall) {
       return new Response(JSON.stringify({ error: "No questions generated" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,7 +114,7 @@ Rules:
     }
 
     const parsed = JSON.parse(toolCall.function.arguments);
-    
+
     return new Response(JSON.stringify(parsed.results), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

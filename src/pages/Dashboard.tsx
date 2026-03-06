@@ -54,12 +54,17 @@ const Dashboard = () => {
             <p className="text-muted-foreground mt-1">Your study command center</p>
           </div>
           <div className="flex gap-3">
-            {totalDue > 0 && (
+            {totalDue > 0 ? (
               <Button onClick={() => navigate("/review")} className="gap-2 gradient-accent text-accent-foreground border-0">
                 <Brain className="h-4 w-4" />
                 Review Now ({totalDue})
               </Button>
-            )}
+            ) : totalNotes > 0 ? (
+              <Button onClick={() => navigate("/review?mode=practice")} variant="outline" className="gap-2 border-accent/20 hover:bg-accent/5 text-accent">
+                <Sparkles className="h-4 w-4" />
+                Practice Session
+              </Button>
+            ) : null}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="gap-2">
@@ -134,30 +139,30 @@ const Dashboard = () => {
               </Card>
             ) : (
               filteredSubjects.map((subject) => (
-              <Card key={subject.id} className="group hover:shadow-elevated transition-all duration-200 cursor-pointer relative">
-                <button
-                  onClick={(e) => { e.stopPropagation(); deleteSubject(subject.id, subject.name); }}
-                  className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-                <Link to={`/subject/${subject.id}`}>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="font-display text-lg">{subject.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="flex gap-4 text-sm text-muted-foreground">
-                        <span>{subject.note_count} notes</span>
-                        {subject.due_count > 0 && (
-                          <span className="text-accent font-medium">{subject.due_count} due</span>
-                        )}
+                <Card key={subject.id} className="group hover:shadow-elevated transition-all duration-200 cursor-pointer relative">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteSubject(subject.id, subject.name); }}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <Link to={`/subject/${subject.id}`}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="font-display text-lg">{subject.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="flex gap-4 text-sm text-muted-foreground">
+                          <span>{subject.note_count} notes</span>
+                          {subject.due_count > 0 && (
+                            <span className="text-accent font-medium">{subject.due_count} due</span>
+                          )}
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
                       </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-accent transition-colors" />
-                    </div>
-                  </CardContent>
-                </Link>
-              </Card>
+                    </CardContent>
+                  </Link>
+                </Card>
               ))
             )}
           </div>

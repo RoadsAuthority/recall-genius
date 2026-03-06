@@ -111,19 +111,31 @@ const Profile = () => {
 
     const handleUpgrade = async () => {
         if (!user) return;
+        if (!window.Paddle) {
+            toast.error("Billing system is still loading. Please try again in a moment.");
+            return;
+        }
         setUpgrading(true);
 
         try {
             const { data, error } = await supabase.functions.invoke("create-paddle-checkout", {
                 body: {
-                    priceId: "pri_placeholder", // Replace with actual Paddle Price ID
-                    productId: "pro_placeholder" // Replace with actual Paddle Product ID
+                    priceId: "pri_placeholder", // User MUST replace this with a real Paddle Price ID
                 }
             });
 
             if (error) throw error;
-            if (data?.url) {
-                window.location.href = data.url;
+            if (data?.transactionId) {
+                window.Paddle.Checkout.open({
+                    settings: {
+                        displayMode: "overlay",
+                        theme: "light",
+                        locale: "en",
+                    },
+                    transactionId: data.transactionId,
+                });
+            } else {
+                throw new Error("No transaction ID returned");
             }
         } catch (error) {
             console.error("Upgrade error:", error);

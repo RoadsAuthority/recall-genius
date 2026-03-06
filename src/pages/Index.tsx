@@ -47,10 +47,6 @@ const Index = () => {
         <section className="relative py-24 px-4 overflow-hidden">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_45%_at_50%_50%,rgba(139,92,246,0.1)_0%,transparent_100%)]" />
           <div className="max-w-5xl mx-auto text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium ring-1 ring-inset ring-accent/20">
-              <Sparkles className="h-4 w-4" />
-              <span>Smart studying for busy students</span>
-            </div>
             <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight text-foreground leading-[1.1]">
               Master Your Subjects with <span className="bg-gradient-to-r from-accent to-purple-400 bg-clip-text text-transparent">Recallio</span>
             </h1>
@@ -62,9 +58,6 @@ const Index = () => {
                 <Link to="/auth">
                   Start Studying Free <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
-              </Button>
-              <Button variant="outline" size="lg" className="h-12 px-8 text-base">
-                View Demo
               </Button>
             </div>
           </div>
