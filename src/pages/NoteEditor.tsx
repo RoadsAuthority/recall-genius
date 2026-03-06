@@ -313,9 +313,11 @@ const NoteEditor = () => {
         description: data.summary,
         duration: 15000,
       });
-    } catch (err) {
+    } catch (err: any) {
       toast.dismiss();
-      toast.error("AI summarization failed");
+      console.error("Summarization error:", err);
+      const errorMessage = err.context?.error || err.message || "AI summarization failed";
+      toast.error(errorMessage);
     }
   };
 
@@ -337,9 +339,11 @@ const NoteEditor = () => {
         description: data.explanation,
         duration: 10000,
       });
-    } catch (err) {
+    } catch (err: any) {
       toast.dismiss();
-      toast.error("AI explanation failed");
+      console.error("AI explanation error:", err);
+      const errorMessage = err.context?.error || err.message || "AI explanation failed";
+      toast.error(errorMessage);
     }
   };
 
