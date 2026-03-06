@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
   try {
     const { blocks } = await req.json();
@@ -120,7 +120,10 @@ Rules:
     });
   } catch (e) {
     console.error("generate-questions error:", e);
-    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+    return new Response(JSON.stringify({
+      error: e instanceof Error ? e.message : "Unknown error",
+      details: e instanceof Error ? e.stack : undefined
+    }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

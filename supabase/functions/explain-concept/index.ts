@@ -7,7 +7,7 @@ const corsHeaders = {
 
 serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
-        return new Response('ok', { headers: corsHeaders })
+        return new Response('ok', { status: 200, headers: corsHeaders })
     }
 
     try {
@@ -55,9 +55,12 @@ serve(async (req: Request) => {
         )
     } catch (error) {
         console.error("explain-concept error:", error);
-        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+        return new Response(JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+            details: error instanceof Error ? error.stack : undefined
+        }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400,
+            status: 500,
         })
     }
 })

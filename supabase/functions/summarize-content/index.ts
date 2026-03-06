@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 serve(async (req: Request) => {
-    if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+    if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
     try {
         const { content } = await req.json();
@@ -56,7 +56,10 @@ serve(async (req: Request) => {
         });
     } catch (e) {
         console.error("summarize-content error:", e);
-        return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
+        return new Response(JSON.stringify({
+            error: e instanceof Error ? e.message : String(e),
+            details: e instanceof Error ? e.stack : undefined
+        }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
