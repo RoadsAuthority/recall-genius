@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import Footer from "./Footer";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
@@ -71,7 +72,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/dashboard" className="flex items-center gap-2">
@@ -139,7 +140,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           </nav>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-4 py-6">{children}</main>
+      <main className="max-w-6xl mx-auto px-4 py-6 flex-grow w-full">{children}</main>
+      <Footer />
     </div>
   );
 };

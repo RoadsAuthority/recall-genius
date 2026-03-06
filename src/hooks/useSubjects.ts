@@ -77,12 +77,25 @@ export const useCreateSubject = () => {
 
   return useMutation({
     mutationFn: async (name: string) => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+
+      // Check current subject count and plan type
+      const [{ data: profile }, { count }] = await Promise.all([
+        supabase.from("profiles").select("plan_type").eq("id", userData.user.id).maybeSingle(),
+        supabase.from("subjects").select("*", { count: "exact", head: true }).eq("user_id", userData.user.id)
+      ]);
+
+      if (profile?.plan_type !== "premium" && (count || 0) >= 3) {
+        toast.error("Free limit reached", {
+          description: "Free accounts are limited to 3 subjects. Upgrade to Premium for unlimited subjects!"
+        });
+        throw new Error("Limit reached");
+      }
 
       const { error } = await supabase
         .from("subjects")
-        .insert({ name: name.trim(), user_id: user.user.id });
+        .insert({ name: name.trim(), user_id: userData.user.id });
 
       if (error) throw error;
     },

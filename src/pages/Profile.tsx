@@ -261,7 +261,7 @@ const Profile = () => {
                                 <p className="text-sm text-muted-foreground max-w-md">
                                     {profile.plan_type === "premium"
                                         ? "You have access to all premium features including Exam Mode, AI Explanations, and Spaced Repetition optimization."
-                                        : "Upgrade to unlock Exam Mode, AI Explanations, Spaced Repetition optimization, and full cloud sync."}
+                                        : "Upgrade to Premium for just $5.00/month to unlock Exam Mode, AI Explanations, and unlimited subjects."}
                                 </p>
                             </div>
                             <Button

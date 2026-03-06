@@ -15,6 +15,9 @@ import Review from "./pages/Review";
 import Definitions from "./pages/Definitions";
 import Profile from "./pages/Profile";
 import ExamMode from "./pages/ExamMode";
+import RefundPolicy from "./pages/RefundPolicy";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -45,6 +48,9 @@ const App = () => (
               <Route path="/definitions" element={<ProtectedRoute><Definitions /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/exam" element={<ProtectedRoute><ExamMode /></ProtectedRoute>} />
+              <Route path="/refund" element={<RefundPolicy />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/terms" element={<TermsOfService />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
