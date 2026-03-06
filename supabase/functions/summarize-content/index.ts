@@ -28,7 +28,7 @@ serve(async (req: Request) => {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
+                model: "google/gemini-1.5-flash",
                 messages: [
                     {
                         role: "system",
@@ -43,7 +43,9 @@ serve(async (req: Request) => {
         });
 
         if (!response.ok) {
-            throw new Error(`AI gateway error: ${response.status}`);
+            const errorData = await response.json().catch(() => ({}));
+            console.error("AI gateway error:", response.status, errorData);
+            throw new Error(`AI gateway error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
         }
 
         const data = await response.json();
