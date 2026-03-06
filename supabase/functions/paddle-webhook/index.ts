@@ -3,7 +3,7 @@ import { createClient } from "supabase";
 
 const PADDLE_WEBHOOK_SECRET = Deno.env.get("PADDLE_WEBHOOK_SECRET");
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response("Method Not Allowed", { status: 405 });
   }
@@ -43,7 +43,7 @@ serve(async (req) => {
       "HMAC",
       key,
       // Convert hex string to Uint8Array
-      new Uint8Array(hmac.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))),
+      new Uint8Array(hmac.match(/.{1,2}/g)!.map((byte: string) => parseInt(byte, 16))),
       encoder.encode(payload)
     );
 
@@ -84,8 +84,8 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error("Webhook processing error:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("Webhook processing error:", error instanceof Error ? error.message : String(error));
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { "Content-Type": "application/json" },
       status: 500,
     });

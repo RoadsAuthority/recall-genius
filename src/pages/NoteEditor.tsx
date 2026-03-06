@@ -127,7 +127,13 @@ const NoteEditor = () => {
       const paragraphs = content
         .split(/\n\s*\n/)
         .map((p) => p.trim())
-        .filter((p) => p.length > 0);
+        .filter((p) => p.length > 5); // Filter out very short or empty blocks
+
+      // Only delete if we have new content to replace it with, or handle empty state
+      if (paragraphs.length === 0) {
+        if (!silent) toast.error("Please add more substantial content before saving.");
+        return;
+      }
 
       // Delete existing blocks for this note
       await supabase.from("note_blocks").delete().eq("note_id", noteId);
@@ -151,17 +157,19 @@ const NoteEditor = () => {
       // Extract and save definitions automatically
       const definitionsToInsert = [];
       const extractionPatterns = [
-        /([^.]+?)\s+is\s+([^.]+?)(?:\.|$)/i,
-        /([^.]+?)\s+refers to\s+([^.]+?)(?:\.|$)/i,
-        /([^.]+?)\s+is defined as\s+([^.]+?)(?:\.|$)/i,
-        /([^.]+?)\s+can be described as\s+([^.]+?)(?:\.|$)/i,
-        /([^.]+?)\s+is the process of\s+([^.]+?)(?:\.|$)/i,
+        /^([^.]+?)\s+is\s+([^.]+?)(?:\.|$)/i,
+        /^([^.]+?)\s+refers to\s+([^.]+?)(?:\.|$)/i,
+        /^([^.]+?)\s+is defined as\s+([^.]+?)(?:\.|$)/i,
+        /^([^.]+?)\s+can be described as\s+([^.]+?)(?:\.|$)/i,
+        /^([^.]+?)\s+is the process of\s+([^.]+?)(?:\.|$)/i,
       ];
 
       for (const block of insertedBlocks) {
+        // Try to match definitions at the start of blocks/paragraphs
         for (const pattern of extractionPatterns) {
           const match = block.content.match(pattern);
-          if (match && match[1] && match[2]) {
+          // Ensure term is not too long and definition is substantial
+          if (match && match[1] && match[2] && match[1].length < 50 && match[2].length > 10) {
             definitionsToInsert.push({
               user_id: (await supabase.auth.getUser()).data.user?.id,
               subject_id: subjectId,
@@ -169,7 +177,7 @@ const NoteEditor = () => {
               definition: match[2].trim(),
               source_block_id: block.id,
             });
-            break; // Move to next block once a definition is found
+            break;
           }
         }
       }

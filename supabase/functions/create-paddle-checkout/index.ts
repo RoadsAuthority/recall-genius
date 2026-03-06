@@ -1,5 +1,4 @@
-import { serve } from "std/http/server.ts"
-import { createClient } from "supabase"
+import { createClient } from "@supabase/supabase-js"
 
 const PADDLE_API_URL = Deno.env.get("PADDLE_ENVIRONMENT") === "sandbox"
   ? "https://sandbox-api.paddle.com"
@@ -10,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -86,8 +85,8 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error) {
-    console.error("Error creating Paddle transaction:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error("Error creating Paddle transaction:", error instanceof Error ? error.message : String(error));
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -1,11 +1,11 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "std/http/server.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+serve(async (req: Request) => {
     if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
     try {
@@ -28,7 +28,7 @@ serve(async (req) => {
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "google/gemini-3-flash-preview",
+                model: "google/gemini-1.5-flash",
                 messages: [
                     {
                         role: "system",
@@ -56,7 +56,7 @@ serve(async (req) => {
         });
     } catch (e) {
         console.error("summarize-content error:", e);
-        return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }), {
+        return new Response(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }), {
             status: 500,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
