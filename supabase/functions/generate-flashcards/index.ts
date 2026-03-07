@@ -1,12 +1,14 @@
-import { serve } from "std/http/server.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-serve(async (req: Request) => {
-    if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
+serve(async (req) => {
+    if (req.method === "OPTIONS") {
+        return new Response(null, { headers: corsHeaders });
+    }
 
     try {
         const { content } = await req.json();
@@ -31,13 +33,14 @@ serve(async (req: Request) => {
                 messages: [
                     {
                         role: "system",
-                        content: "You are an expert academic summarizer. Provide a concise, highly structured summary of the provided notes. Use bullet points for key concepts. Keep it professional and focused on university-level material."
+                        content: "You are an expert at creating active recall flashcards. Given a piece of text, generate 3-5 high-quality flashcards. Each flashcard must have a clear 'question' and a concise 'answer'. Return only a JSON array of objects with 'question' and 'answer' keys."
                     },
                     {
                         role: "user",
-                        content: `Please summarize these notes:\n\n${content}`
+                        content: `Create flashcards for these notes:\n\n${content}`
                     }
                 ],
+                response_format: { type: "json_object" }
             }),
         });
 
@@ -48,21 +51,20 @@ serve(async (req: Request) => {
         }
 
         const data = await response.json();
-        const summary = data.choices?.[0]?.message?.content;
+        // OpenAI with json_object might return the array inside a property
+        const contentText = data.choices?.[0]?.message?.content;
+        const parsed = JSON.parse(contentText);
+        const flashcards = parsed.flashcards || parsed.cards || (Array.isArray(parsed) ? parsed : Object.values(parsed)[0]);
 
-        if (!summary) throw new Error("No summary generated");
-
-        return new Response(JSON.stringify({ summary }), {
+        return new Response(JSON.stringify({ flashcards }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
         });
-    } catch (e) {
-        console.error("summarize-content error:", e);
-        return new Response(JSON.stringify({
-            error: e instanceof Error ? e.message : String(e),
-            details: e instanceof Error ? e.stack : undefined
-        }), {
-            status: 500,
+    } catch (error) {
+        console.error("Error in generate-flashcards:", error.message);
+        return new Response(JSON.stringify({ error: error.message }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 500,
         });
     }
 });

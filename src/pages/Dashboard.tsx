@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, BookOpen, Brain, Layers, ArrowRight, Trash2, Search } from "lucide-react";
+import { Plus, BookOpen, Brain, Layers, ArrowRight, Trash2, Search, Sparkles } from "lucide-react";
 import { DashboardSkeleton } from "@/components/LoadingSkeletons";
+import { AIStudyToolsSection } from "@/components/AIStudyToolsSection";
 
 
 const Dashboard = () => {
@@ -167,6 +168,13 @@ const Dashboard = () => {
             )}
           </div>
         )}
+
+        {/* AI Study Tools — premium placeholders, all Coming Soon */}
+        <AIStudyToolsSection
+          title="AI Study Tools"
+          description="Premium AI features. Coming soon."
+          compact
+        />
       </div>
     </AppLayout>
   );

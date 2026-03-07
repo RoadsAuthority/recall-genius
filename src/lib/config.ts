@@ -20,6 +20,11 @@ export const REVIEW_CONFIG = {
   REVIEW_SESSION_LIMIT: 20,
 } as const;
 
+export const EXAM_CONFIG = {
+  DURATION_MS: 15 * 60 * 1000, // 15 minutes
+  MAX_ITEMS: 15,
+} as const;
+
 export const EDITOR_CONFIG = {
   AUTO_SAVE_DELAY: 2000, // 2 seconds
   MIN_CONTENT_LENGTH: 1,

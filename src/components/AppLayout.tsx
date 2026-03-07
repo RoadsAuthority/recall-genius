@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Brain, LayoutDashboard, BookOpen, LogOut, User, Bell, Settings, Trophy } from "lucide-react";
+import { Brain, LayoutDashboard, BookOpen, LogOut, User, Bell, Trophy, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -15,6 +16,7 @@ import Footer from "./Footer";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, signOut } = useAuth();
+  const { isPremium } = useProfile();
   const location = useLocation();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -67,7 +69,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/review", label: "Review", icon: Brain },
     { path: "/definitions", label: "Definitions", icon: BookOpen },
-    { path: "/exam", label: "Exam Mode", icon: Trophy },
+    { path: "/exam", label: "Exam Mode", icon: Trophy, premiumOnly: true },
     { path: "/profile", label: "Profile", icon: User },
   ];
 
@@ -90,6 +92,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
                 >
                   <item.icon className="h-4 w-4" />
                   <span className="hidden sm:inline">{item.label}</span>
+                  {"premiumOnly" in item && item.premiumOnly && !isPremium && (
+                    <Lock className="h-3 w-3 text-muted-foreground shrink-0" />
+                  )}
                 </Button>
               </Link>
             ))}

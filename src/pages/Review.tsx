@@ -228,9 +228,14 @@ const Review = () => {
                 ))}
               </div>
             ) : (
-              <p className="text-lg font-medium text-muted-foreground italic">
-                No questions generated for this block. Try to recall the content below.
-              </p>
+              <div className="space-y-2">
+                <p className="text-lg font-medium font-display">
+                  What are the key points from this content?
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Try to recall the main ideas, then show the answer to check yourself.
+                </p>
+              </div>
             )}
           </CardContent>
         </Card>

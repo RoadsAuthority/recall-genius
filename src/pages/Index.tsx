@@ -109,19 +109,20 @@ const Index = () => {
               <h2 className="text-3xl font-display font-bold">Simple, Transparent Pricing</h2>
               <p className="text-muted-foreground">Choose the plan that fits your academic goals.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
               {/* Free Plan */}
               <div className="p-8 rounded-2xl border bg-card/30 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-xl font-bold mb-2">Free</h3>
+                  <h3 className="text-xl font-bold mb-1">Free</h3>
+                  <p className="text-xs text-muted-foreground mb-3">What you get</p>
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold">$0</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
                   <ul className="space-y-4 mb-8">
-                    {["Up to 3 subjects", "Basic note storage", "Manual review mode"].map((item, i) => (
+                    {["Up to 3 subjects", "Basic note storage", "Manual notes review", "Study Pack & recall questions", "No exam mode, no AI add-on"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <CheckCircle2 className="h-4 w-4 text-accent/50" />
+                        <CheckCircle2 className="h-4 w-4 text-accent/50 shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -138,21 +139,22 @@ const Index = () => {
                   Recommended
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-2">Premium</h3>
+                  <h3 className="text-xl font-bold mb-1">Premium</h3>
+                  <p className="text-xs text-muted-foreground mb-3">What you get</p>
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-4xl font-bold">$5.00</span>
+                    <span className="text-4xl font-bold">$5</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
                   <ul className="space-y-4 mb-8">
                     {[
                       "Unlimited subjects",
-                      "AI-powered analysis",
-                      "Priority AI features",
-                      "Advanced exam modes",
-                      "Offline access support"
+                      "Flashcards",
+                      "Exam mode (all or per topic)",
+                      "Manual question generation",
+                      "Spaced repetition"
                     ].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-sm">
-                        <CheckCircle2 className="h-4 w-4 text-accent" />
+                        <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -160,6 +162,33 @@ const Index = () => {
                 </div>
                 <Button className="w-full h-12 text-base font-bold shadow-md shadow-accent/20" asChild>
                   <Link to="/auth">Upgrade Now</Link>
+                </Button>
+              </div>
+
+              {/* AI Add-on — Coming Soon */}
+              <div className="p-8 rounded-2xl border border-dashed bg-card/20 flex flex-col justify-between opacity-90">
+                <div>
+                  <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
+                    AI Add-on
+                    <span className="text-xs font-normal normal-case px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Coming Soon
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">Not in Free or Premium</p>
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-2xl font-bold text-muted-foreground">—</span>
+                  </div>
+                  <ul className="space-y-4 mb-8">
+                    {["AI Summary", "AI Flashcards", "AI Practice Questions", "AI Study Pack Generator"].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
+                        <span className="text-muted-foreground/70">🔒</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <Button variant="outline" className="w-full cursor-not-allowed" disabled asChild>
+                  <span>Coming Soon</span>
                 </Button>
               </div>
             </div>

@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { User, Bell, Shield, CreditCard, Loader2 } from "lucide-react";
+import { User, Bell, Shield, Loader2 } from "lucide-react";
+import { AIStudyToolsSection } from "@/components/AIStudyToolsSection";
 
 const Profile = () => {
     const { user } = useAuth();
@@ -260,42 +261,95 @@ const Profile = () => {
                                 <Shield className="h-5 w-5 text-accent" />
                                 Subscription Plan
                             </CardTitle>
-                            <CardDescription>Power up your learning with Recallio Premium.</CardDescription>
+                            <CardDescription>Free and Premium features — upgrade to unlock more.</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col md:flex-row items-center justify-between gap-6">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-2xl font-bold capitalize">{profile.plan_type} Plan</span>
-                                    {profile.plan_type === "premium" && (
-                                        <span className="bg-accent/20 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Active</span>
-                                    )}
+                        <CardContent className="space-y-6">
+                            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl font-bold capitalize">{profile.plan_type} Plan</span>
+                                        {profile.plan_type === "premium" && (
+                                            <span className="bg-accent/20 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Active</span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-muted-foreground max-w-md">
+                                        {profile.plan_type === "premium"
+                                            ? "You have access to all premium features below."
+                                            : "Upgrade to Premium for $5/month to unlock the features listed under Premium."}
+                                    </p>
                                 </div>
-                                <p className="text-sm text-muted-foreground max-w-md">
-                                    {profile.plan_type === "premium"
-                                        ? "You have access to all premium features including Exam Mode, AI Explanations, and Spaced Repetition optimization."
-                                        : "Upgrade to Premium for just $5.00/month to unlock Exam Mode, AI Explanations, and unlimited subjects."}
-                                </p>
+                                <Button
+                                    variant={profile.plan_type === "premium" ? "outline" : "default"}
+                                    size="lg"
+                                    className="min-w-[180px] font-bold"
+                                    onClick={handleUpgrade}
+                                    disabled={upgrading || profile.plan_type === "premium"}
+                                >
+                                    {upgrading ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Redirecting...
+                                        </>
+                                    ) : profile.plan_type === "premium" ? (
+                                        "Premium Active"
+                                    ) : (
+                                        "Upgrade to Premium"
+                                    )}
+                                </Button>
                             </div>
-                            <Button
-                                variant={profile.plan_type === "premium" ? "outline" : "default"}
-                                size="lg"
-                                className="min-w-[180px] font-bold"
-                                onClick={handleUpgrade}
-                                disabled={upgrading || profile.plan_type === "premium"}
-                            >
-                                {upgrading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Redirecting...
-                                    </>
-                                ) : profile.plan_type === "premium" ? (
-                                    "Premium Active"
-                                ) : (
-                                    "Upgrade to Premium"
-                                )}
-                            </Button>
+                            <div className="grid gap-4 sm:grid-cols-2 text-sm border-t pt-4">
+                                <div className="rounded-lg border bg-background/50 p-4">
+                                    <h4 className="font-semibold text-foreground mb-2">Free — included</h4>
+                                    <ul className="space-y-1.5 text-muted-foreground">
+                                        <li>• Up to 3 subjects</li>
+                                        <li>• Basic note storage</li>
+                                        <li>• Manual notes review</li>
+                                        <li>• Study Pack (from note)</li>
+                                        <li>• Generate recall questions (AI)</li>
+                                        <li>• No exam mode, no flashcards</li>
+                                    </ul>
+                                </div>
+                                <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
+                                    <h4 className="font-semibold text-accent mb-2">Premium — $5/month</h4>
+                                    <ul className="space-y-1.5 text-muted-foreground">
+                                        <li>• Unlimited subjects</li>
+                                        <li>• Flashcards</li>
+                                        <li>• Exam mode (all topics or per topic)</li>
+                                        <li>• Manual question generation</li>
+                                        <li>• Spaced repetition</li>
+                                        <li>• Generate Study Tools (AI)</li>
+                                    </ul>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
+
+                    {/* AI Add-on placeholder — Coming Soon */}
+                    <Card className="md:col-span-2 border-dashed opacity-90">
+                        <CardHeader>
+                            <CardTitle className="text-lg">AI Add-on</CardTitle>
+                            <CardDescription>
+                                Not included in Free or Premium. Coming soon.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <ul className="text-sm text-muted-foreground space-y-1.5">
+                                <li className="flex items-center gap-2"><span>🔒</span> AI Summary</li>
+                                <li className="flex items-center gap-2"><span>🔒</span> AI Flashcards</li>
+                                <li className="flex items-center gap-2"><span>🔒</span> AI Practice Questions</li>
+                                <li className="flex items-center gap-2"><span>🔒</span> AI Study Pack Generator</li>
+                            </ul>
+                            <p className="text-xs text-muted-foreground mt-3">We will not charge or enable these until release.</p>
+                        </CardContent>
+                    </Card>
+
+                    {/* AI Study Tools — coming soon */}
+                    <div className="md:col-span-2">
+                        <AIStudyToolsSection
+                            title="AI Study Tools (Add-on)"
+                            description="Premium AI-powered study features. All tools below are coming soon."
+                        />
+                    </div>
                 </div>
             </div>
         </AppLayout>

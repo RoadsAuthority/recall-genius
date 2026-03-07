@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.create-paddle-checkout]
 verify_jwt = false
+
+[functions.generate-study-pack]
+verify_jwt = false
+
+[functions.check-answer]
+verify_jwt = false

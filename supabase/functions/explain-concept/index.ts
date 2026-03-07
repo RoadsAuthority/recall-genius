@@ -12,21 +12,21 @@ serve(async (req: Request) => {
 
     try {
         const { term, level } = await req.json()
-        const AI_GATEWAY_TOKEN = Deno.env.get("LOVABLE_API_KEY") || Deno.env.get("AI_GATEWAY_TOKEN");
-        if (!AI_GATEWAY_TOKEN) throw new Error("AI gateway token is not configured");
+        const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+        if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not configured");
 
         const prompt = level === "beginner"
             ? `Explain the concept "${term}" like I'm 5 years old. Use simple analogies and easy language.`
             : `Provide a detailed, academic-level explanation of the concept "${term}". Include technical details and context suitable for a university student.`;
 
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${AI_GATEWAY_TOKEN}`,
+                Authorization: `Bearer ${GROQ_API_KEY}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: "google/gemini-1.5-flash",
+                model: "llama-3.3-70b-versatile",
                 messages: [
                     {
                         role: "system",
@@ -42,8 +42,8 @@ serve(async (req: Request) => {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error("AI gateway error:", response.status, errorData);
-            throw new Error(`AI gateway error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
+            console.error("Groq error:", response.status, errorData);
+            throw new Error(`Groq error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
         }
 
         const data = await response.json();
