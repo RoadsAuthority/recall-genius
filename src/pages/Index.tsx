@@ -109,51 +109,70 @@ const Index = () => {
               <h2 className="text-3xl font-display font-bold">Simple, Transparent Pricing</h2>
               <p className="text-muted-foreground">Choose the plan that fits your academic goals.</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-              {/* Free Plan */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Free Plan — Hook users, daily use */}
               <div className="p-8 rounded-2xl border bg-card/30 flex flex-col justify-between">
                 <div>
                   <h3 className="text-xl font-bold mb-1">Free</h3>
-                  <p className="text-xs text-muted-foreground mb-3">What you get</p>
+                  <p className="text-xs text-muted-foreground mb-3">Use Recallio daily. No AI, no advanced tools.</p>
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold">$0</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
-                  <ul className="space-y-4 mb-8">
-                    {["Up to 3 subjects", "Basic note storage", "Manual notes review", "Study Pack & recall questions", "No exam mode, no AI add-on"].map((item, i) => (
+                  <ul className="space-y-3 mb-6">
+                    {[
+                      "Unlimited notes",
+                      "3 subjects",
+                      "Basic folders & organization",
+                      "Basic search",
+                      "Sync across devices",
+                      "Basic note editor (text, bullets, headings)",
+                    ].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
                         <CheckCircle2 className="h-4 w-4 text-accent/50 shrink-0" />
                         <span>{item}</span>
                       </li>
                     ))}
                   </ul>
+                  <p className="text-xs text-muted-foreground border-t pt-3 mt-2">
+                    Limits: No AI · No advanced study tools · Limited exports
+                  </p>
                 </div>
-                <Button variant="outline" className="w-full" asChild>
+                <Button variant="outline" className="w-full mt-6" asChild>
                   <Link to="/auth">Get Started</Link>
                 </Button>
               </div>
 
-              {/* Premium Plan */}
+              {/* Premium — Study assistant */}
               <div className="p-8 rounded-2xl border-2 border-accent bg-accent/5 shadow-lg shadow-accent/10 flex flex-col justify-between relative">
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1 rounded-full bg-accent text-white text-xs font-bold uppercase tracking-wider">
                   Recommended
                 </div>
                 <div>
                   <h3 className="text-xl font-bold mb-1">Premium</h3>
-                  <p className="text-xs text-muted-foreground mb-3">What you get</p>
+                  <p className="text-xs text-muted-foreground mb-3">Everything in Free + study & AI features.</p>
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold">$5</span>
                     <span className="text-muted-foreground text-sm">/month</span>
                   </div>
-                  <ul className="space-y-4 mb-8">
-                    {[
-                      "Unlimited subjects",
-                      "Flashcards",
-                      "Exam mode (all or per topic)",
-                      "Manual question generation",
-                      "Spaced repetition"
-                    ].map((item, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm">
+                  <ul className="space-y-3 mb-6 text-sm">
+                    <li className="font-semibold text-foreground mt-2">Study</li>
+                    {["Flashcard generator from notes", "Quiz generator from notes", "Smart summaries", "Study mode"].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 pl-4">
+                        <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                    <li className="font-semibold text-foreground mt-2">AI</li>
+                    {["Ask AI about your notes", "AI note summarization", "AI concept explanations", "AI study questions"].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 pl-4">
+                        <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                    <li className="font-semibold text-foreground mt-2">Productivity</li>
+                    {["Export notes (PDF / Markdown)", "Advanced search", "Tagging system", "Dark mode themes"].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 pl-4">
                         <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
                         <span>{item}</span>
                       </li>
@@ -162,33 +181,6 @@ const Index = () => {
                 </div>
                 <Button className="w-full h-12 text-base font-bold shadow-md shadow-accent/20" asChild>
                   <Link to="/auth">Upgrade Now</Link>
-                </Button>
-              </div>
-
-              {/* AI Add-on — Coming Soon */}
-              <div className="p-8 rounded-2xl border border-dashed bg-card/20 flex flex-col justify-between opacity-90">
-                <div>
-                  <h3 className="text-xl font-bold mb-1 flex items-center gap-2">
-                    AI Add-on
-                    <span className="text-xs font-normal normal-case px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                      Coming Soon
-                    </span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground mb-3">Not in Free or Premium</p>
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-2xl font-bold text-muted-foreground">—</span>
-                  </div>
-                  <ul className="space-y-4 mb-8">
-                    {["AI Summary", "AI Flashcards", "AI Practice Questions", "AI Study Pack Generator"].map((item, i) => (
-                      <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
-                        <span className="text-muted-foreground/70">🔒</span>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <Button variant="outline" className="w-full cursor-not-allowed" disabled asChild>
-                  <span>Coming Soon</span>
                 </Button>
               </div>
             </div>

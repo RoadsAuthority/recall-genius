@@ -203,11 +203,10 @@ const NoteEditor = () => {
           /^([^.]+?)\s+is the process of\s+([^.]+?)(?:\.|$)/i,
         ];
 
+        const seenTerms = new Set<string>();
         for (const block of insertedBlocks) {
-          // Try to match definitions at the start of blocks/paragraphs
           for (const pattern of extractionPatterns) {
             const match = block.content.match(pattern);
-            // Ensure term is not too long and definition is substantial
             if (
               match &&
               match[1] &&
@@ -215,6 +214,9 @@ const NoteEditor = () => {
               match[1].length < 50 &&
               match[2].length > 10
             ) {
+              const termKey = match[1].trim().toLowerCase();
+              if (seenTerms.has(termKey)) break;
+              seenTerms.add(termKey);
               definitionsToInsert.push({
                 user_id: (await supabase.auth.getUser()).data.user?.id,
                 subject_id: subjectId,
@@ -242,11 +244,11 @@ const NoteEditor = () => {
         }
 
         if (!silent) {
-          toast.success("Note saved! Generating recall questions...");
+          toast.success(isPremium ? "Note saved! Generating recall questions..." : "Note saved!");
         }
 
-        // Generate questions via edge function
-        if (insertedBlocks && insertedBlocks.length > 0) {
+        // Generate questions via edge function (Premium only — no AI on Free)
+        if (isPremium && insertedBlocks && insertedBlocks.length > 0) {
           try {
             const response = await supabase.functions.invoke(
               "generate-questions",
@@ -311,7 +313,7 @@ const NoteEditor = () => {
         setSaving(false);
       }
     },
-    [noteId, content, title, subjectId],
+    [noteId, content, title, subjectId, isPremium],
   );
 
   const handleRegenerateQuestions = async () => {
@@ -703,15 +705,18 @@ const NoteEditor = () => {
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
                   onClick={() =>
+                    isPremium &&
                     exportNoteToMarkdown(
                       noteId || "",
                       title || "Untitled",
                       content,
                     )
                   }
-                  disabled={!content.trim()}
+                  disabled={!content.trim() || !isPremium}
+                  className={!isPremium ? "opacity-70" : ""}
                 >
                   Export as Markdown
+                  {!isPremium && <Lock className="ml-2 h-3 w-3 shrink-0" />}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() =>
@@ -723,15 +728,16 @@ const NoteEditor = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            {/* Study Pack — available on Free and Premium */}
+            {/* Study Pack — Premium only (Smart summaries) */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="inline-flex">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleGenerateStudyPack}
+                    onClick={isPremium ? handleGenerateStudyPack : undefined}
                     disabled={
+                      !isPremium ||
                       !content.trim() ||
                       content.length < 50 ||
                       generatingStudyPack
@@ -746,11 +752,14 @@ const NoteEditor = () => {
                     <span className="hidden sm:inline">
                       {generatingStudyPack ? "Generating..." : "Study Pack"}
                     </span>
+                    {!isPremium && <Lock className="h-3 w-3 opacity-70" />}
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                Summary, key concepts, flashcards, practice questions, multiple choice
+                {isPremium
+                  ? "Smart summaries, key concepts, flashcards, practice questions"
+                  : "Premium — upgrade for Study Pack (smart summaries)"}
               </TooltipContent>
             </Tooltip>
             {/* Premium AI: Generate Study Tools */}
@@ -795,8 +804,8 @@ const NoteEditor = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleRegenerateQuestions}
-                    disabled={generatingQuestions || !noteId}
+                    onClick={isPremium ? handleRegenerateQuestions : undefined}
+                    disabled={!isPremium || generatingQuestions || !noteId}
                     className="gap-2"
                   >
                     {generatingQuestions ? (
@@ -807,11 +816,14 @@ const NoteEditor = () => {
                     <span className="hidden sm:inline">
                       {generatingQuestions ? "Generating..." : "Generate questions"}
                     </span>
+                    {!isPremium && <Lock className="h-3 w-3 opacity-70" />}
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                Use AI (Groq) to generate recall questions from saved note blocks. Save first, then click.
+                {isPremium
+                  ? "AI study questions from saved blocks. Save first, then click."
+                  : "Premium — upgrade for AI study questions"}
               </TooltipContent>
             </Tooltip>
             <Button
@@ -824,7 +836,7 @@ const NoteEditor = () => {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {saving ? "Saving..." : "Save & Generate"}
+              {saving ? "Saving..." : isPremium ? "Save & Generate" : "Save"}
             </Button>
           </div>
         </div>

@@ -5,9 +5,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock } from "lucide-react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
+import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock, FileQuestion, Loader2, Lock } from "lucide-react";
 import { REVIEW_CONFIG } from "@/lib/config";
 
 interface ReviewItem {
@@ -26,6 +27,7 @@ const Review = () => {
   const [loading, setLoading] = useState(true);
   const [completed, setCompleted] = useState(false);
   const [practiceMode, setPracticeMode] = useState(false);
+  const [generatingQuestions, setGeneratingQuestions] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -89,6 +91,67 @@ const Review = () => {
 
     setItems(reviewItems);
     setLoading(false);
+  };
+
+  const getGenerateQuestionsErrorMessage = async (e: unknown): Promise<string> => {
+    try {
+      if (e instanceof FunctionsHttpError && e.context && typeof (e.context as Response).json === "function") {
+        const body = await (e.context as Response).json();
+        const msg = (body as { error?: string })?.error;
+        if (msg) return msg;
+      }
+    } catch (_) {}
+    return e instanceof Error ? e.message : "Failed to generate questions.";
+  };
+
+  const handleGenerateQuestionsForCurrentBlock = async () => {
+    const current = items[currentIndex];
+    if (!current || !user) return;
+    setGeneratingQuestions(true);
+    toast.loading("Generating questions with AI...");
+    try {
+      const response = await supabase.functions.invoke("generate-questions", {
+        body: {
+          blocks: [{ id: current.block_id, content: current.block_content }],
+        },
+      });
+      if (response.error) throw response.error;
+      const results = response.data;
+      if (!Array.isArray(results)) {
+        toast.dismiss();
+        toast.error("Could not generate questions. Try again.");
+        setGeneratingQuestions(false);
+        return;
+      }
+      await supabase.from("recall_questions").delete().eq("block_id", current.block_id);
+      const questionsToInsert = (results as { block_id: string; questions: string[] }[]).flatMap((r) =>
+        (r.questions || []).map((q) => ({ block_id: r.block_id, question: q })),
+      );
+      if (questionsToInsert.length > 0) {
+        const { data: inserted } = await supabase
+          .from("recall_questions")
+          .insert(questionsToInsert)
+          .select("id, question, block_id");
+        toast.dismiss();
+        toast.success(`${questionsToInsert.length} question(s) generated.`);
+        setItems((prev) =>
+          prev.map((item, i) =>
+            i === currentIndex && inserted?.length
+              ? { ...item, questions: inserted as { id: string; question: string; block_id: string }[] }
+              : item,
+          ),
+        );
+      } else {
+        toast.dismiss();
+        toast.info("No questions returned for this block.");
+      }
+    } catch (e) {
+      toast.dismiss();
+      const msg = await getGenerateQuestionsErrorMessage(e);
+      toast.error(msg);
+    } finally {
+      setGeneratingQuestions(false);
+    }
   };
 
   const handleReview = async (difficulty: "forgot" | "hard" | "easy") => {
@@ -237,6 +300,34 @@ const Review = () => {
                 </p>
               </div>
             )}
+            <div className="mt-4 pt-4 border-t">
+              {isPremium ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateQuestionsForCurrentBlock}
+                    disabled={generatingQuestions}
+                    className="gap-2 w-full sm:w-auto"
+                  >
+                    {generatingQuestions ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <FileQuestion className="h-4 w-4" />
+                    )}
+                    {generatingQuestions ? "Generating..." : "Generate questions with AI"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Add or replace recall questions for this block using AI.
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  Premium: upgrade to generate AI questions from this block in Review.
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 

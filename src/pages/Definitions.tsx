@@ -71,19 +71,34 @@ const Definitions = () => {
       }, {});
 
       if (defRes.data) {
+        const withSubject = defRes.data.map((d: any) => ({
+          ...d,
+          subject_name: subjectMap[d.subject_id] || "Unknown",
+        }));
+        // Dedupe by term+definition so the same card doesn't repeat
+        const seen = new Set<string>();
         setDefinitions(
-          defRes.data.map((d: any) => ({
-            ...d,
-            subject_name: subjectMap[d.subject_id] || "Unknown",
-          })),
+          withSubject.filter((d: any) => {
+            const key = `${(d.term || "").trim().toLowerCase()}|${(d.definition || "").trim()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }),
         );
       }
       if (conRes.data) {
+        const withSubject = conRes.data.map((c: any) => ({
+          ...c,
+          subject_name: subjectMap[c.subject_id] || "Unknown",
+        }));
+        const seen = new Set<string>();
         setConcepts(
-          conRes.data.map((c: any) => ({
-            ...c,
-            subject_name: subjectMap[c.subject_id] || "Unknown",
-          })),
+          withSubject.filter((c: any) => {
+            const key = `${(c.term || "").trim().toLowerCase()}|${(c.description || "").trim()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }),
         );
       }
       setLoading(false);
@@ -211,9 +226,7 @@ const Definitions = () => {
                     </span>
                   </div>
                   <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {items.map((item: any) => {
-                      console.log("Rendering item with ID:", item.id); // Debug log
-                      return (
+                    {items.map((item: any) => (
                         <Card
                           key={item.id}
                           className="group hover:shadow-md transition-shadow dark:bg-card/50"
@@ -275,8 +288,7 @@ const Definitions = () => {
                             )}
                           </CardContent>
                         </Card>
-                      );
-                    })}
+                    ))}
                   </div>
 
                   {isPremium && items.length > 1 && (

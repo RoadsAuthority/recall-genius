@@ -11,7 +11,6 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { User, Bell, Shield, Loader2 } from "lucide-react";
-import { AIStudyToolsSection } from "@/components/AIStudyToolsSection";
 
 const Profile = () => {
     const { user } = useAuth();
@@ -301,55 +300,31 @@ const Profile = () => {
                                 <div className="rounded-lg border bg-background/50 p-4">
                                     <h4 className="font-semibold text-foreground mb-2">Free — included</h4>
                                     <ul className="space-y-1.5 text-muted-foreground">
-                                        <li>• Up to 3 subjects</li>
-                                        <li>• Basic note storage</li>
-                                        <li>• Manual notes review</li>
-                                        <li>• Study Pack (from note)</li>
-                                        <li>• Generate recall questions (AI)</li>
-                                        <li>• No exam mode, no flashcards</li>
+                                        <li>• Unlimited notes</li>
+                                        <li>• 3 subjects</li>
+                                        <li>• Basic folders & organization</li>
+                                        <li>• Basic search</li>
+                                        <li>• Sync across devices</li>
+                                        <li>• Basic note editor</li>
+                                        <li>• Limits: No AI, no advanced study tools, limited exports</li>
                                     </ul>
                                 </div>
                                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
                                     <h4 className="font-semibold text-accent mb-2">Premium — $5/month</h4>
                                     <ul className="space-y-1.5 text-muted-foreground">
-                                        <li>• Unlimited subjects</li>
-                                        <li>• Flashcards</li>
-                                        <li>• Exam mode (all topics or per topic)</li>
-                                        <li>• Manual question generation</li>
-                                        <li>• Spaced repetition</li>
-                                        <li>• Generate Study Tools (AI)</li>
+                                        <li>• <strong>Study:</strong> Flashcards, quiz generator, smart summaries, study mode</li>
+                                        <li>• <strong>AI:</strong> Ask AI, summarization, concept explanations, study questions</li>
+                                        <li>• <strong>Productivity:</strong> Export PDF/Markdown, advanced search, tagging, dark mode</li>
                                     </ul>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* AI Add-on placeholder — Coming Soon */}
-                    <Card className="md:col-span-2 border-dashed opacity-90">
-                        <CardHeader>
-                            <CardTitle className="text-lg">AI Add-on</CardTitle>
-                            <CardDescription>
-                                Not included in Free or Premium. Coming soon.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="text-sm text-muted-foreground space-y-1.5">
-                                <li className="flex items-center gap-2"><span>🔒</span> AI Summary</li>
-                                <li className="flex items-center gap-2"><span>🔒</span> AI Flashcards</li>
-                                <li className="flex items-center gap-2"><span>🔒</span> AI Practice Questions</li>
-                                <li className="flex items-center gap-2"><span>🔒</span> AI Study Pack Generator</li>
-                            </ul>
-                            <p className="text-xs text-muted-foreground mt-3">We will not charge or enable these until release.</p>
-                        </CardContent>
-                    </Card>
-
-                    {/* AI Study Tools — coming soon */}
-                    <div className="md:col-span-2">
-                        <AIStudyToolsSection
-                            title="AI Study Tools (Add-on)"
-                            description="Premium AI-powered study features. All tools below are coming soon."
-                        />
-                    </div>
+                    {/* More AI / productivity features may be added to Premium over time */}
+                    <p className="text-xs text-muted-foreground md:col-span-2">
+                        Export PDF, advanced search, tagging, and dark mode are listed in Premium; some are coming soon in-app.
+                    </p>
                 </div>
             </div>
         </AppLayout>
