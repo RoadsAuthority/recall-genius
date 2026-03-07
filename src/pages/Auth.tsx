@@ -25,14 +25,23 @@ const Auth = () => {
         toast.success("Welcome back!");
         navigate("/dashboard");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+          },
         });
         if (error) throw error;
-        toast.success("Account created! You can now sign in.");
-        navigate("/dashboard");
+        // If confirmation is required, Supabase may not create a session until the user clicks the email link
+        if (data?.user && !data?.session) {
+          toast.success("Check your email for the confirmation link.");
+          setEmail("");
+          setPassword("");
+        } else {
+          toast.success("Account created! Welcome.");
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast.error(error.message);
