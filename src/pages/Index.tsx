@@ -163,6 +163,11 @@ const Index = () => {
                         <span>{item}</span>
                       </li>
                     ))}
+                    <li className="flex items-center gap-3 pl-4">
+                      <CheckCircle2 className="h-4 w-4 text-accent shrink-0" />
+                      <span>Study rooms — study with other Premium students</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Coming soon</span>
+                    </li>
                     <li className="font-semibold text-foreground mt-2">AI</li>
                     {["Ask AI about your notes", "AI note summarization", "AI concept explanations", "AI study questions"].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 pl-4">

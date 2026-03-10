@@ -24,7 +24,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Tooltip,
   TooltipContent,
@@ -938,10 +937,10 @@ const NoteEditor = () => {
           </div>
         </div>
 
-        {/* Study Pack result dialog — improved layout */}
+        {/* Study Pack result dialog — scrollable body */}
         <Dialog open={studyPackOpen} onOpenChange={setStudyPackOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-            <DialogHeader>
+          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-6 gap-4">
+            <DialogHeader className="shrink-0 space-y-1">
               <DialogTitle className="flex items-center gap-2">
                 <Package className="h-5 w-5 text-accent" />
                 Study Pack
@@ -951,8 +950,8 @@ const NoteEditor = () => {
               </p>
             </DialogHeader>
             {studyPack && (
-              <ScrollArea className="flex-1 pr-4 -mr-4">
-                <div className="space-y-6 text-sm">
+              <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-2 -mr-2" style={{ maxHeight: "min(70vh, 600px)" }}>
+                <div className="space-y-6 text-sm pb-4">
                   {studyPack.summary && (
                     <section className="space-y-2">
                       <h3 className="font-display font-semibold text-foreground flex items-center gap-2">
@@ -1054,7 +1053,7 @@ const NoteEditor = () => {
                     </section>
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             )}
           </DialogContent>
         </Dialog>

@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sparkles, FileText, Layers, HelpCircle, Package, Lock, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -205,7 +204,7 @@ export function AIStudyToolsSection({
               </Button>
             </div>
           ) : (
-            <ScrollArea className="flex-1 max-h-[50vh] pr-4">
+            <div className="overflow-y-auto overflow-x-hidden pr-2 pb-4" style={{ maxHeight: "min(70vh, 560px)" }}>
               <div className="space-y-4 text-sm">
                 {selectedTool === "summary" && result.summary && (
                   <div>
@@ -299,7 +298,7 @@ export function AIStudyToolsSection({
                   </div>
                 )}
               </div>
-            </ScrollArea>
+            </div>
           )}
 
           {result && (

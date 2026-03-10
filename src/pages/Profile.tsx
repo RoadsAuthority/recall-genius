@@ -312,7 +312,7 @@ const Profile = () => {
                                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
                                     <h4 className="font-semibold text-accent mb-2">Premium — $5/month</h4>
                                     <ul className="space-y-1.5 text-muted-foreground">
-                                        <li>• <strong>Study:</strong> Flashcards, quiz generator, smart summaries, study mode</li>
+                                        <li>• <strong>Study:</strong> Flashcards, quiz generator, smart summaries, study mode, study rooms (coming soon)</li>
                                         <li>• <strong>AI:</strong> Ask AI, summarization, concept explanations, study questions</li>
                                         <li>• <strong>Productivity:</strong> Export PDF/Markdown, advanced search, tagging, dark mode</li>
                                     </ul>
@@ -321,9 +321,23 @@ const Profile = () => {
                         </CardContent>
                     </Card>
 
+                    {/* Study Rooms — coming soon */}
+                    <Card className="md:col-span-2 border-dashed border-accent/30 bg-accent/5">
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Study Rooms</CardTitle>
+                            <CardDescription>Study together with other Premium students in shared rooms.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">Coming soon</span>
+                                Create or join rooms by subject, study in sync, and stay accountable with other Premium users.
+                            </p>
+                        </CardContent>
+                    </Card>
+
                     {/* More AI / productivity features may be added to Premium over time */}
                     <p className="text-xs text-muted-foreground md:col-span-2">
-                        Export PDF, advanced search, tagging, and dark mode are listed in Premium; some are coming soon in-app.
+                        Export PDF, advanced search, tagging, and dark mode are listed in Premium; study rooms and some others are coming soon in-app.
                     </p>
                 </div>
             </div>
