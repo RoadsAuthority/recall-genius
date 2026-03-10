@@ -20,36 +20,37 @@ const RefundPolicy = () => {
                 <article className="prose prose-slate dark:prose-invert max-w-none bg-card p-8 rounded-xl border shadow-sm">
                     <h1 className="text-3xl font-display font-bold mb-2">Refund Policy</h1>
                     <p className="text-sm text-muted-foreground mb-8">Last Updated: March 6, 2026</p>
+                    <p className="text-muted-foreground leading-relaxed mb-8">
+                        Recallio sells its products through Paddle as the Merchant of Record. The following payment, tax and refund terms apply to your purchases.
+                    </p>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-bold mb-4 text-foreground">Subscription Refunds</h2>
+                        <h2 className="text-xl font-bold mb-4 text-foreground">Payment, taxes and refunds</h2>
+                        <p className="text-muted-foreground leading-relaxed mb-4">
+                            Paddle will charge your chosen payment method for any paid Transactions, including any applicable taxes according to the tax jurisdiction in which the Transaction takes place.
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed mb-4">
+                            If you pre-order the Product, you will be charged upfront. You can request a refund for whatever reason until the content is delivered; after delivery, the standard refund policy applies.
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed mb-4">
+                            You agree to receipt of all invoices and receipts in an electronic format, which includes email. Product prices may change at any time.
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed mb-4">
+                            If technical problems prevent or unreasonably delay delivery of the Product, your exclusive and sole remedy is either replacement of the Product or refund of the price paid, as determined by Paddle.
+                        </p>
+                        <p className="text-muted-foreground leading-relaxed mb-4">
+                            When providing your information, you must ensure that it is up-to-date and accurate. Paddle will not be responsible for non-receipt of the Product due to incorrect information provided by you.
+                        </p>
                         <p className="text-muted-foreground leading-relaxed">
-                            Our platform offers subscription-based services for access to premium features.
-                            Refund requests may be considered if submitted within 14 days of the initial purchase.
-                            Refunds are handled through our payment provider Paddle.
+                            Paddle reserves the right to not fulfil and to cancel orders if payment is not received.
                         </p>
                     </section>
 
                     <section className="mb-8">
-                        <h2 className="text-xl font-bold mb-4 text-foreground">Cancellations</h2>
+                        <h2 className="text-xl font-bold mb-4 text-foreground">Amendments and contact</h2>
                         <p className="text-muted-foreground leading-relaxed">
-                            Users can cancel their subscription at any time. After cancellation, access to premium features will continue until the end of the current billing period.
-                        </p>
-                    </section>
-
-                    <section className="mb-8">
-                        <h2 className="text-xl font-bold mb-4 text-foreground">Abuse of Refund Policy</h2>
-                        <p className="text-muted-foreground leading-relaxed">
-                            We reserve the right to refuse refunds in cases of abuse or excessive refund requests.
-                        </p>
-                    </section>
-
-                    <section className="mb-8">
-                        <h2 className="text-xl font-bold mb-4 text-foreground">Contact</h2>
-                        <p className="text-muted-foreground leading-relaxed">
-                            To request a refund, contact:
-                            <br />
-                            <span className="font-medium text-accent">support@recallio.com</span>
+                            To make amendments to your order or to request a refund, contact Recallio at{" "}
+                            <span className="font-medium text-accent">support@recallio.com</span>.
                         </p>
                     </section>
                 </article>
