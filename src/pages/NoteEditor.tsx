@@ -666,13 +666,14 @@ const NoteEditor = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-4 max-w-4xl mx-auto">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
+      <div className="space-y-4 max-w-4xl mx-auto min-w-0">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate(`/subject/${subjectId}`)}
+              className="shrink-0 min-h-10 min-w-10 p-0 sm:p-2"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -680,10 +681,10 @@ const NoteEditor = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Note title..."
-              className="text-xl font-display font-bold border-0 focus-visible:ring-2 bg-transparent px-0 h-auto"
+              className="text-lg sm:text-xl font-display font-bold border-0 focus-visible:ring-2 bg-transparent px-0 h-auto min-w-0"
             />
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {hasUnsavedChanges && (
               <span className="text-xs text-muted-foreground hidden sm:inline">
                 Unsaved changes

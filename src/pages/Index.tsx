@@ -42,15 +42,15 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-grow pt-16">
+      <main className="flex-grow pt-16 min-w-0">
         {/* Hero Section */}
-        <section className="relative py-24 px-4 overflow-hidden">
+        <section className="relative py-12 sm:py-20 md:py-24 px-4 overflow-hidden">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_45%_at_50%_50%,rgba(139,92,246,0.1)_0%,transparent_100%)]" />
-          <div className="max-w-5xl mx-auto text-center space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-            <h1 className="text-5xl md:text-7xl font-display font-bold tracking-tight text-foreground leading-[1.1]">
+          <div className="max-w-5xl mx-auto text-center space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-display font-bold tracking-tight text-foreground leading-[1.1] px-1">
               Master Your Subjects with <span className="bg-gradient-to-r from-accent to-purple-400 bg-clip-text text-transparent">Recallio</span>
             </h1>
-            <p className="max-w-2xl mx-auto text-xl text-muted-foreground leading-relaxed">
+            <p className="max-w-2xl mx-auto text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed px-2">
               Synthesize notes, generate definitions, and prepare for exams using AI-powered study tools designed for university excellence.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -64,10 +64,10 @@ const Index = () => {
         </section>
 
         {/* Features Section */}
-        <section id="features" className="py-24 bg-card/50">
+        <section id="features" className="py-12 sm:py-20 md:py-24 bg-card/50">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="text-center mb-16 space-y-4">
-              <h2 className="text-3xl font-display font-bold">Everything You Need to Succeed</h2>
+            <div className="text-center mb-10 sm:mb-16 space-y-4">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold">Everything You Need to Succeed</h2>
               <p className="text-muted-foreground max-w-2xl mx-auto">
                 Built specifically for university workflows, Recallio helps you organize, memorize, and excel.
               </p>
@@ -103,10 +103,10 @@ const Index = () => {
         </section>
 
         {/* Pricing Section */}
-        <section id="pricing" className="py-24 px-4">
+        <section id="pricing" className="py-12 sm:py-20 md:py-24 px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="text-center mb-16 space-y-4">
-              <h2 className="text-3xl font-display font-bold">Simple, Transparent Pricing</h2>
+            <div className="text-center mb-10 sm:mb-16 space-y-4">
+              <h2 className="text-2xl sm:text-3xl font-display font-bold">Simple, Transparent Pricing</h2>
               <p className="text-muted-foreground">Choose the plan that fits your academic goals.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">

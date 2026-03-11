@@ -10,10 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { User, Bell, Shield, Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
+import { User, Bell, Shield, Loader2, Moon, Sun, Monitor } from "lucide-react";
 
 const Profile = () => {
     const { user } = useAuth();
+    const { theme, setTheme, resolvedTheme } = useTheme();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -250,6 +252,46 @@ const Profile = () => {
                             <Button variant="outline" onClick={handleSaveNotifications} disabled={saving} className="w-full">
                                 Update Notifications
                             </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* Dark mode — Premium */}
+                    <Card className={profile.plan_type !== "premium" ? "opacity-80" : ""}>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="flex items-center gap-2 text-base">
+                                {resolvedTheme === "dark" ? <Moon className="h-4 w-4 text-accent" /> : <Sun className="h-4 w-4 text-accent" />}
+                                Dark mode
+                                {profile.plan_type !== "premium" && (
+                                    <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-muted text-muted-foreground">Premium</span>
+                                )}
+                            </CardTitle>
+                            <CardDescription>
+                                Choose light, dark, or system theme. Premium feature.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { value: "light", label: "Light", icon: Sun },
+                                    { value: "dark", label: "Dark", icon: Moon },
+                                    { value: "system", label: "System", icon: Monitor },
+                                ].map(({ value, label, icon: Icon }) => (
+                                    <Button
+                                        key={value}
+                                        variant={theme === value ? "secondary" : "outline"}
+                                        size="sm"
+                                        onClick={() => profile.plan_type === "premium" && setTheme(value)}
+                                        disabled={profile.plan_type !== "premium"}
+                                        className="gap-1.5"
+                                    >
+                                        <Icon className="h-3.5 w-3.5" />
+                                        {label}
+                                    </Button>
+                                ))}
+                            </div>
+                            {profile.plan_type !== "premium" && (
+                                <p className="text-xs text-muted-foreground mt-2">Upgrade to Premium to change theme.</p>
+                            )}
                         </CardContent>
                     </Card>
 
