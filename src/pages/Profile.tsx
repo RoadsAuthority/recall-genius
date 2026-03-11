@@ -28,7 +28,8 @@ const Profile = () => {
     const [notifications, setNotifications] = useState({
         email_enabled: true,
         phone_enabled: false,
-        reminder_frequency: "daily"
+        reminder_frequency: "daily",
+        daily_reminder_count: 2,
     });
 
     useEffect(() => {
@@ -51,10 +52,12 @@ const Profile = () => {
             }
 
             if (settingsRes.data) {
+                const d = settingsRes.data as { email_enabled?: boolean; phone_enabled?: boolean; reminder_frequency?: string; daily_reminder_count?: number };
                 setNotifications({
-                    email_enabled: settingsRes.data.email_enabled,
-                    phone_enabled: settingsRes.data.phone_enabled,
-                    reminder_frequency: settingsRes.data.reminder_frequency
+                    email_enabled: d.email_enabled ?? true,
+                    phone_enabled: d.phone_enabled ?? false,
+                    reminder_frequency: d.reminder_frequency ?? "daily",
+                    daily_reminder_count: Math.min(6, Math.max(1, d.daily_reminder_count ?? 2)),
                 });
             }
 
@@ -96,7 +99,8 @@ const Profile = () => {
                 .update({
                     email_enabled: notifications.email_enabled,
                     phone_enabled: notifications.phone_enabled,
-                    reminder_frequency: notifications.reminder_frequency
+                    reminder_frequency: notifications.reminder_frequency,
+                    daily_reminder_count: notifications.reminder_frequency === "daily" ? notifications.daily_reminder_count : 2,
                 })
                 .eq("user_id", user.id);
 
@@ -249,6 +253,30 @@ const Profile = () => {
                                     </SelectContent>
                                 </Select>
                             </div>
+                            {notifications.reminder_frequency === "daily" && (
+                                <div className="space-y-2">
+                                    <Label>Times per day</Label>
+                                    <Select
+                                        value={String(notifications.daily_reminder_count)}
+                                        onValueChange={(value) => setNotifications({ ...notifications, daily_reminder_count: Number(value) })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {[1, 2, 3, 4, 5, 6].map((n) => (
+                                                <SelectItem key={n} value={String(n)}>
+                                                    {n} {n === 1 ? "time" : "times"} per day
+                                                    {n > 1 ? ` (every ${n === 6 ? "4" : (24 / n).toFixed(1)}h)` : ""}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-xs text-muted-foreground">
+                                        Reminders are spaced at least 4 hours apart (max 6 per day).
+                                    </p>
+                                </div>
+                            )}
                             <Button variant="outline" onClick={handleSaveNotifications} disabled={saving} className="w-full">
                                 Update Notifications
                             </Button>

@@ -265,6 +265,8 @@ export type Database = {
           email_enabled: boolean
           phone_enabled: boolean
           reminder_frequency: string
+          daily_reminder_count: number
+          last_reminder_sent_at: string | null
           created_at: string
         }
         Insert: {
@@ -272,6 +274,8 @@ export type Database = {
           email_enabled?: boolean
           phone_enabled?: boolean
           reminder_frequency?: string
+          daily_reminder_count?: number
+          last_reminder_sent_at?: string | null
           created_at?: string
         }
         Update: {
@@ -279,6 +283,8 @@ export type Database = {
           email_enabled?: boolean
           phone_enabled?: boolean
           reminder_frequency?: string
+          daily_reminder_count?: number
+          last_reminder_sent_at?: string | null
           created_at?: string
         }
         Relationships: [
