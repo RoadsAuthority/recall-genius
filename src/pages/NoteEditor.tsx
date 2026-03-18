@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Loader2, Sparkles, Download } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, Download, Upload } from "lucide-react";
 import { EDITOR_CONFIG } from "@/lib/config";
 import { exportNoteToMarkdown, exportNoteToText } from "@/lib/export";
+import { extractTextFromPdf } from "@/lib/pdf";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,6 +76,8 @@ const NoteEditor = () => {
     y: number;
   } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
+  const [importingPdf, setImportingPdf] = useState(false);
 
   useEffect(() => {
     if (!noteId) return;
@@ -246,8 +249,8 @@ const NoteEditor = () => {
           toast.success(isPremium ? "Note saved! Generating recall questions..." : "Note saved!");
         }
 
-        // Generate questions via edge function (Premium only — no AI on Free)
-        if (isPremium && insertedBlocks && insertedBlocks.length > 0) {
+        // Generate questions via edge function (available on Free + Premium)
+        if (insertedBlocks && insertedBlocks.length > 0) {
           try {
             const response = await supabase.functions.invoke(
               "generate-questions",
@@ -312,7 +315,7 @@ const NoteEditor = () => {
         setSaving(false);
       }
     },
-    [noteId, content, title, subjectId, isPremium],
+    [noteId, content, title, subjectId],
   );
 
   const handleRegenerateQuestions = async () => {
@@ -650,6 +653,50 @@ const NoteEditor = () => {
     }
   };
 
+  const handleImportPdf = async (file: File) => {
+    // Guardrails: keep browser extraction snappy.
+    const maxBytes = 15 * 1024 * 1024; // 15MB
+    if (file.size > maxBytes) {
+      toast.error("That PDF is too large to import in the browser (max 15MB).");
+      return;
+    }
+
+    setImportingPdf(true);
+    toast.loading("Importing PDF… extracting text");
+    try {
+      const { text, pagesExtracted, totalPages } = await extractTextFromPdf(file, {
+        maxPages: 50,
+        maxChars: 200_000,
+      });
+
+      if (!text || text.length < 20) {
+        throw new Error("No selectable text found in this PDF. If it's scanned, try OCR first.");
+      }
+
+      setContent((prev) => {
+        const prefix =
+          prev.trim().length > 0 ? `${prev.trim()}\n\n---\nImported from PDF: ${file.name}\n---\n\n` : "";
+        return `${prefix}${text}`;
+      });
+
+      toast.dismiss();
+      toast.success("PDF imported", {
+        description:
+          totalPages > pagesExtracted
+            ? `Imported text from the first ${pagesExtracted} of ${totalPages} pages.`
+            : `Imported text from ${pagesExtracted} page${pagesExtracted === 1 ? "" : "s"}.`,
+        duration: 6000,
+      });
+    } catch (e) {
+      toast.dismiss();
+      toast.error(e instanceof Error ? e.message : "Failed to import PDF");
+      console.error("PDF import error:", e);
+    } finally {
+      setImportingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = "";
+    }
+  };
+
   if (loading) {
     return (
       <AppLayout>
@@ -730,6 +777,41 @@ const NoteEditor = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <input
+              ref={pdfInputRef}
+              type="file"
+              accept="application/pdf,.pdf"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleImportPdf(file);
+              }}
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => pdfInputRef.current?.click()}
+                    disabled={importingPdf}
+                    className="gap-2"
+                  >
+                    {importingPdf ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Upload className="h-4 w-4" />
+                    )}
+                    <span className="hidden sm:inline">
+                      {importingPdf ? "Importing…" : "Import PDF"}
+                    </span>
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Import a PDF and convert it to text in this note (up to 50 pages / 15MB).
+              </TooltipContent>
+            </Tooltip>
             {/* Study Pack — Premium only (Smart summaries) */}
             <Tooltip>
               <TooltipTrigger asChild>
@@ -806,8 +888,8 @@ const NoteEditor = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={isPremium ? handleRegenerateQuestions : undefined}
-                    disabled={!isPremium || generatingQuestions || !noteId}
+                    onClick={handleRegenerateQuestions}
+                    disabled={generatingQuestions || !noteId}
                     className="gap-2"
                   >
                     {generatingQuestions ? (
@@ -818,14 +900,11 @@ const NoteEditor = () => {
                     <span className="hidden sm:inline">
                       {generatingQuestions ? "Generating..." : "Generate questions"}
                     </span>
-                    {!isPremium && <Lock className="h-3 w-3 opacity-70" />}
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                {isPremium
-                  ? "AI study questions from saved blocks. Save first, then click."
-                  : "Premium — upgrade for AI study questions"}
+                AI study questions from saved blocks. Save first, then click.
               </TooltipContent>
             </Tooltip>
             <Button
@@ -838,7 +917,7 @@ const NoteEditor = () => {
               ) : (
                 <Save className="h-4 w-4" />
               )}
-              {saving ? "Saving..." : isPremium ? "Save & Generate" : "Save"}
+              {saving ? "Saving..." : "Save & Generate"}
             </Button>
           </div>
         </div>

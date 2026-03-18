@@ -172,7 +172,7 @@ const Dashboard = () => {
         {/* AI Study Tools — active for Premium */}
         <AIStudyToolsSection
           title="AI Study Tools"
-          description="Premium AI features. Paste notes and generate summaries, flashcards, or full study packs."
+          description="Paste notes and generate AI summaries & study questions. Premium unlocks flashcards + study packs."
           compact
         />
       </div>

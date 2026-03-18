@@ -114,7 +114,7 @@ const Index = () => {
               <div className="p-8 rounded-2xl border bg-card/30 flex flex-col justify-between">
                 <div>
                   <h3 className="text-xl font-bold mb-1">Free</h3>
-                  <p className="text-xs text-muted-foreground mb-3">Use Recallio daily. No AI, no advanced tools.</p>
+                  <p className="text-xs text-muted-foreground mb-3">Use Recallio daily with core AI help for studying.</p>
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold">$0</span>
                     <span className="text-muted-foreground text-sm">/month</span>
@@ -127,6 +127,8 @@ const Index = () => {
                       "Basic search",
                       "Sync across devices",
                       "Basic note editor (text, bullets, headings)",
+                      "AI summaries",
+                      "AI study questions",
                     ].map((item, i) => (
                       <li key={i} className="flex items-center gap-3 text-sm text-muted-foreground">
                         <CheckCircle2 className="h-4 w-4 text-accent/50 shrink-0" />
@@ -135,7 +137,7 @@ const Index = () => {
                     ))}
                   </ul>
                   <p className="text-xs text-muted-foreground border-t pt-3 mt-2">
-                    Limits: No AI · No advanced study tools · Limited exports
+                    Limits: 3 subjects · Some AI tools require Premium
                   </p>
                 </div>
                 <Button variant="outline" className="w-full mt-6" asChild>
