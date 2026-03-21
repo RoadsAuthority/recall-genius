@@ -543,28 +543,30 @@ const NoteEditor = () => {
 
     toast.loading(`Generating AI explanation (${level})...`);
 
-    try {
-      const { data, error } = await supabase.functions.invoke(
-        "explain-concept",
-        {
-          body: { term: selection.text, level },
-        },
-      );
+    const { data, error } = await supabase.functions.invoke("explain-concept", {
+      body: { term: selection.text, level },
+    });
 
-      if (error) throw error;
+    toast.dismiss();
 
-      toast.dismiss();
-      // Show explanation in a dialog or toast (using toast for speed now)
+    if (error) {
+      const msg =
+        (data as { error?: string } | null)?.error ||
+        (error as { context?: { error?: string } })?.context?.error ||
+        (error as Error).message ||
+        "AI explanation failed.";
+      console.error("AI explanation error:", error);
+      toast.error(msg);
+      return;
+    }
+
+    if (data?.explanation) {
       toast.success("AI Explanation", {
         description: data.explanation,
         duration: 10000,
       });
-    } catch (err: any) {
-      toast.dismiss();
-      console.error("AI explanation error:", err);
-      const errorMessage =
-        err.context?.error || err.message || "AI explanation failed";
-      toast.error(errorMessage);
+    } else {
+      toast.error("No explanation returned.");
     }
   };
 

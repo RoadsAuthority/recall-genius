@@ -10,10 +10,29 @@ serve(async (req: Request) => {
         return new Response('ok', { status: 200, headers: corsHeaders })
     }
 
+    const send = (body: Record<string, unknown>, status: number) =>
+        new Response(JSON.stringify(body), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status,
+        });
+
     try {
-        const { term, level } = await req.json()
+        let body: { term?: string; level?: string };
+        try {
+            body = await req.json();
+        } catch {
+            return send({ error: "Invalid JSON body" }, 400);
+        }
+        const term = body?.term;
+        const level = body?.level ?? "beginner";
+        if (!term || typeof term !== "string" || !term.trim()) {
+            return send({ error: "Missing or invalid 'term'" }, 400);
+        }
+
         const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-        if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not configured");
+        if (!GROQ_API_KEY) {
+            return send({ error: "AI explanation is not configured (GROQ_API_KEY missing)." }, 503);
+        }
 
         const prompt = level === "beginner"
             ? `Explain the concept "${term}" like I'm 5 years old. Use simple analogies and easy language.`
@@ -40,29 +59,23 @@ serve(async (req: Request) => {
             }),
         });
 
+        const data = await response.json().catch(() => ({}));
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            console.error("Groq error:", response.status, errorData);
-            throw new Error(`Groq error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
+            const msg = (data as { error?: { message?: string } })?.error?.message || (data as { message?: string })?.message || JSON.stringify(data);
+            console.error("Groq error:", response.status, data);
+            return send({ error: `AI provider error: ${msg}` }, 502);
         }
 
-        const data = await response.json();
-        const explanation = data.choices?.[0]?.message?.content;
+        const explanation = (data as { choices?: Array<{ message?: { content?: string } }> })?.choices?.[0]?.message?.content;
+        if (!explanation) {
+            return send({ error: "No explanation generated" }, 502);
+        }
 
-        if (!explanation) throw new Error("No explanation generated");
-
-        return new Response(
-            JSON.stringify({ explanation }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        )
+        return send({ explanation }, 200);
     } catch (error) {
         console.error("explain-concept error:", error);
-        return new Response(JSON.stringify({
+        return send({
             error: error instanceof Error ? error.message : String(error),
-            details: error instanceof Error ? error.stack : undefined
-        }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 500,
-        })
+        }, 500);
     }
 })

@@ -28,7 +28,7 @@ export const useProfile = () => {
 
     fetchProfile();
 
-    // Subscribe to profile changes
+    // Subscribe to profile changes (Realtime). If WS fails, app still works via fetch.
     const channel = supabase
       .channel("profile-changes")
       .on(
@@ -43,8 +43,11 @@ export const useProfile = () => {
           setProfile(payload.new);
         },
       )
-
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("Profile realtime subscription issue:", status, err?.message ?? err);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);

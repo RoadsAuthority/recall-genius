@@ -53,7 +53,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           toast.info(payload.new.title, { description: payload.new.message });
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("Notifications realtime subscription issue:", status, err?.message ?? err);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
