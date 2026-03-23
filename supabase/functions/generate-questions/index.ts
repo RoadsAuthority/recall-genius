@@ -1,4 +1,5 @@
 import { serve } from "std/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -13,10 +14,28 @@ function jsonResponse(body: unknown, status: number) {
   });
 }
 
+type QuestionResult = { block_id: string; questions: string[] };
+
+function capQuestionsForFreePlan(results: QuestionResult[], maxTotalQuestions: number): QuestionResult[] {
+  let remaining = maxTotalQuestions;
+  const capped: QuestionResult[] = [];
+
+  for (const item of results) {
+    if (remaining <= 0) break;
+    const safeQuestions = Array.isArray(item.questions) ? item.questions : [];
+    const allowed = safeQuestions.slice(0, remaining);
+    remaining -= allowed.length;
+    capped.push({ block_id: item.block_id, questions: allowed });
+  }
+
+  return capped;
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { status: 200, headers: corsHeaders });
 
   try {
+    const FREE_PLAN_QUESTION_LIMIT = 5;
     let body: { blocks?: unknown };
     try {
       body = req.method === "POST" && req.body ? await req.json() : {};
@@ -24,6 +43,31 @@ serve(async (req: Request) => {
       return jsonResponse({ error: "Invalid JSON body" }, 400);
     }
     const { blocks } = body;
+
+    let isPremium = false;
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      const authHeader = req.headers.get("Authorization");
+      const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+
+      if (supabaseUrl && serviceRoleKey && token) {
+        const admin = createClient(supabaseUrl, serviceRoleKey);
+        const { data: userData } = await admin.auth.getUser(token);
+        const userId = userData?.user?.id;
+        if (userId) {
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("plan_type")
+            .eq("id", userId)
+            .maybeSingle();
+          isPremium = profile?.plan_type === "premium";
+        }
+      }
+    } catch (planError) {
+      // If plan detection fails, we safely fall back to free-plan limits.
+      console.warn("generate-questions plan detection failed:", planError);
+    }
 
     const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
     if (!GROQ_API_KEY) {
@@ -100,14 +144,29 @@ Use the exact block_id string from each "Block N (ID: xxx)" line in the input.`
     } catch {
       return jsonResponse({ error: "Invalid JSON from AI" }, 500);
     }
-    const results = Array.isArray((parsed as { results?: unknown })?.results)
+    const rawResults = Array.isArray((parsed as { results?: unknown })?.results)
       ? (parsed as { results: unknown[] }).results
       : parsed;
-    if (!Array.isArray(results)) {
+    if (!Array.isArray(rawResults)) {
       return jsonResponse({ error: "Invalid response shape" }, 500);
     }
 
-    return jsonResponse(results, 200);
+    const normalizedResults: QuestionResult[] = rawResults
+      .filter((r): r is { block_id: unknown; questions: unknown } =>
+        !!r && typeof r === "object" && "block_id" in r && "questions" in r
+      )
+      .map((r) => ({
+        block_id: String(r.block_id),
+        questions: Array.isArray(r.questions)
+          ? r.questions.filter((q): q is string => typeof q === "string")
+          : [],
+      }));
+
+    const finalResults = isPremium
+      ? normalizedResults
+      : capQuestionsForFreePlan(normalizedResults, FREE_PLAN_QUESTION_LIMIT);
+
+    return jsonResponse(finalResults, 200);
   } catch (e) {
     console.error("generate-questions error:", e);
     return jsonResponse({

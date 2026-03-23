@@ -31,7 +31,7 @@ const TOOL_META: Record<
     label: "Flashcards",
     icon: Layers,
     description: "Auto-generate flashcards from content.",
-    premiumOnly: true,
+    premiumOnly: false,
   },
   "study-pack": {
     label: "Study Pack",
@@ -58,7 +58,7 @@ export interface AIStudyToolsSectionProps {
 
 export function AIStudyToolsSection({
   title = "AI Study Tools",
-  description = "Premium AI features. Paste notes and generate summaries, flashcards, or full study packs.",
+  description = "Paste notes and generate summaries, flashcards, practice questions, or a full study pack.",
   compact = false,
   className = "",
 }: AIStudyToolsSectionProps) {
@@ -110,7 +110,10 @@ export function AIStudyToolsSection({
         });
       } else if (tool === "practice") {
         const pack = data as StudyPackResult;
-        setResult({ practice_questions: pack.practice_questions ?? [] });
+        const questions = pack.practice_questions ?? [];
+        setResult({
+          practice_questions: isPremium ? questions : questions.slice(0, 5),
+        });
       } else {
         setResult(data as StudyPackResult);
       }

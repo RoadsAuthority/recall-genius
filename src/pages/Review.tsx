@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { FunctionsHttpError } from "@supabase/supabase-js";
-import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock, FileQuestion, Loader2, Lock } from "lucide-react";
+import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock, FileQuestion, Loader2 } from "lucide-react";
 import { REVIEW_CONFIG } from "@/lib/config";
 
 interface ReviewItem {
@@ -18,6 +18,7 @@ interface ReviewItem {
 }
 
 const Review = () => {
+  const FREE_QUIZ_QUESTION_LIMIT = 5;
   const { user } = useAuth();
   const { isPremium } = useProfile();
   const navigate = useNavigate();
@@ -127,13 +128,16 @@ const Review = () => {
       const questionsToInsert = (results as { block_id: string; questions: string[] }[]).flatMap((r) =>
         (r.questions || []).map((q) => ({ block_id: r.block_id, question: q })),
       );
-      if (questionsToInsert.length > 0) {
+      const limitedQuestions = isPremium
+        ? questionsToInsert
+        : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
+      if (limitedQuestions.length > 0) {
         const { data: inserted } = await supabase
           .from("recall_questions")
-          .insert(questionsToInsert)
+          .insert(limitedQuestions)
           .select("id, question, block_id");
         toast.dismiss();
-        toast.success(`${questionsToInsert.length} question(s) generated.`);
+        toast.success(`${limitedQuestions.length} question(s) generated.`);
         setItems((prev) =>
           prev.map((item, i) =>
             i === currentIndex && inserted?.length
@@ -301,32 +305,26 @@ const Review = () => {
               </div>
             )}
             <div className="mt-4 pt-4 border-t">
-              {isPremium ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateQuestionsForCurrentBlock}
-                    disabled={generatingQuestions}
-                    className="gap-2 w-full sm:w-auto"
-                  >
-                    {generatingQuestions ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileQuestion className="h-4 w-4" />
-                    )}
-                    {generatingQuestions ? "Generating..." : "Generate questions with AI"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-1.5">
-                    Add or replace recall questions for this block using AI.
-                  </p>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                  <Lock className="h-3.5 w-3.5" />
-                  Premium: upgrade to generate AI questions from this block in Review.
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateQuestionsForCurrentBlock}
+                  disabled={generatingQuestions}
+                  className="gap-2 w-full sm:w-auto"
+                >
+                  {generatingQuestions ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileQuestion className="h-4 w-4" />
+                  )}
+                  {generatingQuestions ? "Generating..." : "Generate questions with AI"}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Add or replace recall questions for this block using AI
+                  {!isPremium ? " (free plan generates up to 5)." : "."}
                 </p>
-              )}
+              </>
             </div>
           </CardContent>
         </Card>

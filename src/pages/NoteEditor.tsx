@@ -46,6 +46,7 @@ async function getGenerateQuestionsErrorMessage(e: unknown): Promise<string> {
 }
 
 const NoteEditor = () => {
+  const FREE_QUIZ_QUESTION_LIMIT = 5;
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -284,13 +285,17 @@ const NoteEditor = () => {
                   })),
               );
 
-              if (questionsToInsert.length > 0) {
+              const limitedQuestions = isPremium
+                ? questionsToInsert
+                : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
+
+              if (limitedQuestions.length > 0) {
                 await supabase
                   .from("recall_questions")
-                  .insert(questionsToInsert);
+                  .insert(limitedQuestions);
                 if (!silent) {
                   toast.success(
-                    `${questionsToInsert.length} recall questions generated!`,
+                    `${limitedQuestions.length} recall questions generated!`,
                   );
                 }
               }
@@ -315,7 +320,7 @@ const NoteEditor = () => {
         setSaving(false);
       }
     },
-    [noteId, content, title, subjectId],
+    [noteId, content, title, subjectId, isPremium],
   );
 
   const handleRegenerateQuestions = async () => {
@@ -362,10 +367,14 @@ const NoteEditor = () => {
           })),
       );
 
-      if (questionsToInsert.length > 0) {
-        await supabase.from("recall_questions").insert(questionsToInsert);
+      const limitedQuestions = isPremium
+        ? questionsToInsert
+        : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
+
+      if (limitedQuestions.length > 0) {
+        await supabase.from("recall_questions").insert(limitedQuestions);
         toast.dismiss();
-        toast.success(`${questionsToInsert.length} recall questions generated from your notes.`);
+        toast.success(`${limitedQuestions.length} recall questions generated from your notes.`);
       } else {
         toast.dismiss();
         toast.info("No questions returned. Try saving the note again or rephrasing content.");
@@ -853,9 +862,8 @@ const NoteEditor = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={isPremium ? handleGenerateStudyTools : undefined}
+                    onClick={handleGenerateStudyTools}
                     disabled={
-                      !isPremium ||
                       !content.trim() ||
                       content.length < 100 ||
                       generatingStudyTools
@@ -872,14 +880,11 @@ const NoteEditor = () => {
                         ? "Generating..."
                         : "Generate Study Tools"}
                     </span>
-                    {!isPremium && <Lock className="h-3 w-3 opacity-70" />}
                   </Button>
                 </span>
               </TooltipTrigger>
               <TooltipContent>
-                {isPremium
-                  ? "Generate summary and flashcards from this note"
-                  : "Premium feature — upgrade to use AI study tools"}
+                Generate summary and flashcards from this note.
               </TooltipContent>
             </Tooltip>
             <Tooltip>

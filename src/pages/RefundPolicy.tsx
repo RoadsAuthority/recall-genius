@@ -21,13 +21,13 @@ const RefundPolicy = () => {
                     <h1 className="text-3xl font-display font-bold mb-2">Refund Policy</h1>
                     <p className="text-sm text-muted-foreground mb-8">Last Updated: March 6, 2026</p>
                     <p className="text-muted-foreground leading-relaxed mb-8">
-                        Recallio sells its products through Paddle as the Merchant of Record. The following payment, tax and refund terms apply to your purchases.
+                        Recallio processes payments through Paystack. The following payment and refund terms apply to your purchases.
                     </p>
 
                     <section className="mb-8">
                         <h2 className="text-xl font-bold mb-4 text-foreground">Payment, taxes and refunds</h2>
                         <p className="text-muted-foreground leading-relaxed mb-4">
-                            Paddle will charge your chosen payment method for any paid Transactions, including any applicable taxes according to the tax jurisdiction in which the Transaction takes place.
+                            Paystack will charge your chosen payment method for any paid transactions, including any applicable taxes according to the tax jurisdiction in which the transaction takes place.
                         </p>
                         <p className="text-muted-foreground leading-relaxed mb-4">
                             If you pre-order the Product, you will be charged upfront. You can request a refund for whatever reason until the content is delivered; after delivery, the standard refund policy applies.
@@ -36,13 +36,13 @@ const RefundPolicy = () => {
                             You agree to receipt of all invoices and receipts in an electronic format, which includes email. Product prices may change at any time.
                         </p>
                         <p className="text-muted-foreground leading-relaxed mb-4">
-                            If technical problems prevent or unreasonably delay delivery of the Product, your exclusive and sole remedy is either replacement of the Product or refund of the price paid, as determined by Paddle.
+                            If technical problems prevent or unreasonably delay delivery of the Product, your exclusive and sole remedy is either replacement of the Product or refund of the price paid, as determined by Recallio in accordance with this policy.
                         </p>
                         <p className="text-muted-foreground leading-relaxed mb-4">
-                            When providing your information, you must ensure that it is up-to-date and accurate. Paddle will not be responsible for non-receipt of the Product due to incorrect information provided by you.
+                            When providing your information, you must ensure that it is up-to-date and accurate. We are not responsible for non-receipt of the Product due to incorrect information provided by you.
                         </p>
                         <p className="text-muted-foreground leading-relaxed">
-                            Paddle reserves the right to not fulfil and to cancel orders if payment is not received.
+                            We reserve the right to not fulfil and to cancel orders if payment is not received.
                         </p>
                     </section>
 

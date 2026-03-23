@@ -14,7 +14,7 @@ Recallio is a premium study companion designed for university students to synthe
 - **Frontend**: React, TypeScript, Vite
 - **Styling**: Tailwind CSS, shadcn/ui
 - **Backend & Auth**: Supabase
-- **Payments**: Paddle
+- **Payments**: Paystack
 
 ## Getting Started
 

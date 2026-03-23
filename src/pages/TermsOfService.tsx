@@ -80,7 +80,7 @@ const TermsOfService = () => {
                         <h2 className="text-xl font-bold mb-4 text-foreground">7. Paid Subscriptions</h2>
                         <p className="text-muted-foreground leading-relaxed">
                             Some features may require a paid subscription.
-                            Payments are securely processed by Paddle, our Merchant of Record and payment provider. Subscription fees may be billed on a recurring basis until canceled.
+                            Payments are securely processed by Paystack, our payment provider. Subscription fees may be billed on a recurring basis until canceled.
                         </p>
                     </section>
 

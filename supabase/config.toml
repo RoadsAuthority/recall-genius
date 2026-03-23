@@ -9,7 +9,10 @@ verify_jwt = false
 [functions.explain-concept]
 verify_jwt = false
 
-[functions.create-paddle-checkout]
+[functions.create-paystack-checkout]
+verify_jwt = false
+
+[functions.paystack-webhook]
 verify_jwt = false
 
 [functions.generate-study-pack]

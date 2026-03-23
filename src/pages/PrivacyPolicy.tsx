@@ -37,7 +37,7 @@ const PrivacyPolicy = () => {
                             <li>Account information (name, email)</li>
                             <li>Notes and study content created by users</li>
                             <li>Usage data to improve the platform</li>
-                            <li>Payment information handled securely by Paddle</li>
+                            <li>Payment information handled securely by Paystack</li>
                         </ul>
                         <p className="text-muted-foreground mt-4">
                             We do not store full payment card details.
@@ -67,7 +67,7 @@ const PrivacyPolicy = () => {
                     <section className="mb-6">
                         <h2 className="text-xl font-bold mb-4 text-foreground">5. Third-Party Services</h2>
                         <p className="text-muted-foreground leading-relaxed">
-                            Payments and subscription billing are processed by Paddle. Their privacy policies may apply to payment transactions.
+                            Payments and subscription billing are processed by Paystack. Their privacy policies may apply to payment transactions.
                         </p>
                     </section>
 

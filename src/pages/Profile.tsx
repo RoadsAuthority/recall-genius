@@ -117,31 +117,21 @@ const Profile = () => {
 
     const handleUpgrade = async () => {
         if (!user) return;
-        if (!window.Paddle) {
-            toast.error("Billing system is still loading. Please try again in a moment.");
-            return;
-        }
         setUpgrading(true);
 
         try {
-            const { data, error } = await supabase.functions.invoke("create-paddle-checkout", {
+            const { data, error } = await supabase.functions.invoke("create-paystack-checkout", {
                 body: {
-                    priceId: "pri_placeholder", // User MUST replace this with a real Paddle Price ID
+                    plan: "premium",
+                    returnUrl: `${window.location.origin}/profile`,
                 }
             });
 
             if (error) throw error;
-            if (data?.transactionId) {
-                window.Paddle.Checkout.open({
-                    settings: {
-                        displayMode: "overlay",
-                        theme: "light",
-                        locale: "en",
-                    },
-                    transactionId: data.transactionId,
-                });
+            if (data?.authorization_url) {
+                window.location.assign(data.authorization_url as string);
             } else {
-                throw new Error("No transaction ID returned");
+                throw new Error("No checkout URL returned");
             }
         } catch (error) {
             console.error("Upgrade error:", error);
@@ -376,7 +366,9 @@ const Profile = () => {
                                         <li>• Basic search</li>
                                         <li>• Sync across devices</li>
                                         <li>• Basic note editor</li>
-                                        <li>• Limits: No AI, no advanced study tools, limited exports</li>
+                                        <li>• AI summaries</li>
+                                        <li>• AI study questions</li>
+                                        <li>• Limits: 3 subjects · Some AI tools require Premium</li>
                                     </ul>
                                 </div>
                                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
