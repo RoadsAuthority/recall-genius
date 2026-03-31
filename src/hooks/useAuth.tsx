@@ -1,11 +1,17 @@
 import { useState, useEffect, createContext, useContext } from "react";
-import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest, setAuthToken } from "@/lib/apiClient";
+
+type AuthUser = {
+  id: string;
+  email: string;
+};
 
 interface AuthContextType {
-  session: Session | null;
-  user: User | null;
+  session: { user: AuthUser } | null;
+  user: AuthUser | null;
   loading: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -13,35 +19,54 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   loading: true,
+  signIn: async () => {},
+  signUp: async () => {},
   signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<{ user: AuthUser } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+    apiRequest<{ data: { user: AuthUser } }>("/api/auth/me")
+      .then((response) => {
+        setSession({ user: response.data.user });
+      })
+      .catch(() => {
+        setAuthToken(null);
+        setSession(null);
+      })
+      .finally(() => {
         setLoading(false);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+      });
   }, []);
 
+  const signIn = async (email: string, password: string) => {
+    const response = await apiRequest<{ data: { token: string; user: AuthUser } }>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setAuthToken(response.data.token);
+    setSession({ user: response.data.user });
+  };
+
+  const signUp = async (email: string, password: string) => {
+    const response = await apiRequest<{ data: { token: string; user: AuthUser } }>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
+    setAuthToken(response.data.token);
+    setSession({ user: response.data.user });
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    setAuthToken(null);
+    setSession(null);
   };
 
   return (
-    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signOut }}>
+    <AuthContext.Provider value={{ session, user: session?.user ?? null, loading, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

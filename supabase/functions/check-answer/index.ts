@@ -19,10 +19,19 @@ serve(async (req: Request) => {
       user_answer?: string;
     };
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const OLLAMA_BASE_URL = Deno.env.get("OLLAMA_BASE_URL");
+    const OLLAMA_MODEL = Deno.env.get("OLLAMA_MODEL") ?? "llama3.1:8b";
+    const useOllama = Boolean(OLLAMA_BASE_URL);
+    const AI_URL = useOllama
+      ? `${OLLAMA_BASE_URL!.replace(/\/+$/, "")}/v1/chat/completions`
+      : GEMINI_API_KEY
+        ? `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key=${encodeURIComponent(GEMINI_API_KEY)}`
+        : "";
+    const AI_MODEL = useOllama ? OLLAMA_MODEL : "gemini-1.5-flash";
+    if (!useOllama && !GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GROQ_API_KEY is not configured" }),
+        JSON.stringify({ error: "OLLAMA_BASE_URL or GEMINI_API_KEY is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -45,14 +54,11 @@ serve(async (req: Request) => {
       );
     }
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: AI_MODEL,
         messages: [
           {
             role: "system",
@@ -69,7 +75,7 @@ serve(async (req: Request) => {
 
     if (!response.ok) {
       const err = await response.text();
-      console.error("Groq error:", response.status, err);
+      console.error("AI provider error:", response.status, err);
       return new Response(
         JSON.stringify({ error: "Could not check answer", correct: false, feedback: "Check failed. Try again or use Show answer." }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -85,7 +91,8 @@ serve(async (req: Request) => {
       );
     }
 
-    const parsed = JSON.parse(raw) as { correct?: boolean; feedback?: string };
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    const parsed = JSON.parse(cleaned) as { correct?: boolean; feedback?: string };
     const correct = Boolean(parsed.correct);
     const feedback = typeof parsed.feedback === "string" ? parsed.feedback : (correct ? "Correct!" : "Not quite. Review the note and try again.");
 

@@ -63,10 +63,19 @@ serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const content = typeof body === "object" && body !== null && "content" in body ? body.content : undefined;
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const OLLAMA_BASE_URL = Deno.env.get("OLLAMA_BASE_URL");
+    const OLLAMA_MODEL = Deno.env.get("OLLAMA_MODEL") ?? "llama3.1:8b";
+    const useOllama = Boolean(OLLAMA_BASE_URL);
+    const AI_URL = useOllama
+      ? `${OLLAMA_BASE_URL!.replace(/\/+$/, "")}/v1/chat/completions`
+      : GEMINI_API_KEY
+        ? `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key=${encodeURIComponent(GEMINI_API_KEY)}`
+        : "";
+    const AI_MODEL = useOllama ? OLLAMA_MODEL : "gemini-1.5-flash";
+    if (!useOllama && !GEMINI_API_KEY) {
       return new Response(
-        JSON.stringify({ error: "GROQ_API_KEY is not configured" }),
+        JSON.stringify({ error: "OLLAMA_BASE_URL or GEMINI_API_KEY is not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -80,14 +89,11 @@ serve(async (req) => {
 
     const userPrompt = `Student Notes:\n\n${content}`;
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
@@ -98,10 +104,10 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error("Groq error:", response.status, errorData);
+      console.error("AI provider error:", response.status, errorData);
       return new Response(
         JSON.stringify({
-          error: `Groq error: ${response.status}`,
+          error: `AI provider error: ${response.status}`,
           details: errorData,
         }),
         {
@@ -129,7 +135,8 @@ serve(async (req) => {
     };
 
     try {
-      pack = JSON.parse(rawContent);
+      const cleaned = rawContent.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      pack = JSON.parse(cleaned);
     } catch {
       return new Response(
         JSON.stringify({ error: "AI response was not valid JSON" }),

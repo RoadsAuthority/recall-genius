@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { apiRequest } from "@/lib/apiClient";
 
 export interface Note {
   id: string;
@@ -14,33 +14,8 @@ export const useNotes = (subjectId: string) => {
   return useQuery({
     queryKey: ["notes", subjectId],
     queryFn: async () => {
-      const { data: notesData, error } = await supabase
-        .from("notes")
-        .select("id, title, created_at")
-        .eq("subject_id", subjectId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch preview snippets for each note
-      const notesWithPreview = await Promise.all(
-        (notesData || []).map(async (note) => {
-          const { data: blocks } = await supabase
-            .from("note_blocks")
-            .select("content")
-            .eq("note_id", note.id)
-            .order("block_order", { ascending: true })
-            .limit(1);
-
-          const preview = blocks && blocks.length > 0
-            ? blocks[0].content.substring(0, 150).trim() + (blocks[0].content.length > 150 ? "..." : "")
-            : undefined;
-
-          return { ...note, preview };
-        })
-      );
-
-      return notesWithPreview;
+      const response = await apiRequest<{ data: Note[] }>(`/api/notes?subject_id=${encodeURIComponent(subjectId)}`);
+      return response.data || [];
     },
     enabled: !!subjectId,
   });
@@ -51,14 +26,11 @@ export const useCreateNote = () => {
 
   return useMutation({
     mutationFn: async ({ title, subjectId }: { title: string; subjectId: string }) => {
-      const { data, error } = await supabase
-        .from("notes")
-        .insert({ title: title.trim(), subject_id: subjectId })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      return data;
+      const response = await apiRequest<{ data: { id: string } }>("/api/notes", {
+        method: "POST",
+        body: JSON.stringify({ title: title.trim(), subject_id: subjectId }),
+      });
+      return response.data;
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["notes", variables.subjectId] });
@@ -75,8 +47,9 @@ export const useDeleteNote = () => {
 
   return useMutation({
     mutationFn: async ({ id, subjectId }: { id: string; subjectId: string }) => {
-      const { error } = await supabase.from("notes").delete().eq("id", id);
-      if (error) throw error;
+      await apiRequest<{ ok: boolean }>(`/api/notes/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["notes", variables.subjectId] });

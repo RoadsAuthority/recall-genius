@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { apiRequest } from "@/lib/apiClient";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { Brain, Eye, EyeOff, CheckCircle, AlertTriangle, Sparkles, Clock, FileQuestion, Loader2 } from "lucide-react";
 import { REVIEW_CONFIG } from "@/lib/config";
 
@@ -44,64 +43,21 @@ const Review = () => {
 
   const fetchReviewItems = async (isPractice: boolean) => {
     setLoading(true);
-    // Get blocks for review
-    let query = supabase
-      .from("note_blocks")
-      .select("id, content, confidence_score, next_review, note_id, notes!inner(subject_id, subjects!inner(user_id))");
-
-    // Only filter by due date if NOT in practice mode
-    if (!isPractice) {
-      query = query.lte("next_review", new Date().toISOString());
-    }
-
-    // Premium: Prioritize low confidence blocks
-    if (isPremium) {
-      query = query.order("confidence_score", { ascending: true });
-    } else {
-      query = query.order("next_review", { ascending: true });
-    }
-
-    const { data: blocks, error } = await query.limit(REVIEW_CONFIG.REVIEW_SESSION_LIMIT);
-
-    if (error) {
-      console.error(error);
-      setLoading(false);
-      return;
-    }
-
-    if (!blocks || blocks.length === 0) {
+    const response = await apiRequest<{ data: any[] }>(
+      `/api/review-items?user_id=${encodeURIComponent(user!.id)}&practice=${isPractice ? "true" : "false"}&limit=${REVIEW_CONFIG.REVIEW_SESSION_LIMIT}`
+    );
+    const reviewItems = response.data || [];
+    if (reviewItems.length === 0) {
       setLoading(false);
       setCompleted(true);
       return;
     }
-
-    // Fetch questions for these blocks
-    const blockIds = blocks.map((b) => b.id);
-    const { data: questions } = await supabase
-      .from("recall_questions")
-      .select("id, question, block_id")
-      .in("block_id", blockIds);
-
-    const reviewItems = blocks.map((block) => ({
-      block_id: block.id,
-      block_content: block.content,
-      confidence_score: block.confidence_score,
-      next_review: block.next_review,
-      questions: (questions || []).filter((q) => q.block_id === block.id),
-    }));
 
     setItems(reviewItems);
     setLoading(false);
   };
 
   const getGenerateQuestionsErrorMessage = async (e: unknown): Promise<string> => {
-    try {
-      if (e instanceof FunctionsHttpError && e.context && typeof (e.context as Response).json === "function") {
-        const body = await (e.context as Response).json();
-        const msg = (body as { error?: string })?.error;
-        if (msg) return msg;
-      }
-    } catch (_) {}
     return e instanceof Error ? e.message : "Failed to generate questions.";
   };
 
@@ -111,20 +67,18 @@ const Review = () => {
     setGeneratingQuestions(true);
     toast.loading("Generating questions with AI...");
     try {
-      const response = await supabase.functions.invoke("generate-questions", {
-        body: {
+      const results = await apiRequest<any[]>("/api/ai/generate-questions", {
+        method: "POST",
+        body: JSON.stringify({
           blocks: [{ id: current.block_id, content: current.block_content }],
-        },
+        }),
       });
-      if (response.error) throw response.error;
-      const results = response.data;
       if (!Array.isArray(results)) {
         toast.dismiss();
         toast.error("Could not generate questions. Try again.");
         setGeneratingQuestions(false);
         return;
       }
-      await supabase.from("recall_questions").delete().eq("block_id", current.block_id);
       const questionsToInsert = (results as { block_id: string; questions: string[] }[]).flatMap((r) =>
         (r.questions || []).map((q) => ({ block_id: r.block_id, question: q })),
       );
@@ -132,10 +86,14 @@ const Review = () => {
         ? questionsToInsert
         : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
       if (limitedQuestions.length > 0) {
-        const { data: inserted } = await supabase
-          .from("recall_questions")
-          .insert(limitedQuestions)
-          .select("id, question, block_id");
+        await apiRequest<{ ok: boolean }>("/api/recall-questions/replace", {
+          method: "POST",
+          body: JSON.stringify({
+            block_ids: [current.block_id],
+            questions: limitedQuestions,
+          }),
+        });
+        const inserted = limitedQuestions.map((q, idx) => ({ id: `${current.block_id}-${idx}`, ...q }));
         toast.dismiss();
         toast.success(`${limitedQuestions.length} question(s) generated.`);
         setItems((prev) =>
@@ -181,26 +139,19 @@ const Review = () => {
         break;
     }
 
-    // Get current confidence
-    const { data: blockData } = await supabase
-      .from("note_blocks")
-      .select("confidence_score")
-      .eq("id", current.block_id)
-      .maybeSingle();
-
-    const currentConfidence = blockData?.confidence_score || 0;
+    const currentConfidence = current.confidence_score || 0;
     const newConfidence = Math.max(
       REVIEW_CONFIG.MIN_CONFIDENCE,
       Math.min(REVIEW_CONFIG.MAX_CONFIDENCE, currentConfidence + confidenceChange)
     );
 
-    await supabase
-      .from("note_blocks")
-      .update({
+    await apiRequest<{ ok: boolean }>(`/api/note-blocks/${encodeURIComponent(current.block_id)}/review`, {
+      method: "PATCH",
+      body: JSON.stringify({
         next_review: nextReview.toISOString(),
         confidence_score: newConfidence,
-      })
-      .eq("id", current.block_id);
+      }),
+    });
 
     setShowAnswer(false);
 

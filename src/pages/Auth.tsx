@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { signIn, signUp } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,28 +21,13 @@ const Auth = () => {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        await signIn(email, password);
         toast.success("Welcome back!");
         navigate("/dashboard");
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-          },
-        });
-        if (error) throw error;
-        // If confirmation is required, Supabase may not create a session until the user clicks the email link
-        if (data?.user && !data?.session) {
-          toast.success("Check your email for the confirmation link.");
-          setEmail("");
-          setPassword("");
-        } else {
-          toast.success("Account created! Welcome.");
-          navigate("/dashboard");
-        }
+        await signUp(email, password);
+        toast.success("Account created! Welcome.");
+        navigate("/dashboard");
       }
     } catch (error: any) {
       toast.error(error.message);

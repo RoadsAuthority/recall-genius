@@ -72,6 +72,8 @@
     --shadow-card: 0 1px 3px 0 hsl(220 20% 10% / 0.06), 0 1px 2px -1px hsl(220 20% 10% / 0.06);
     --shadow-elevated: 0 10px 25px -5px hsl(220 20% 10% / 0.08), 0 8px 10px -6px hsl(220 20% 10% / 0.04);
     --shadow-glow: 0 0 20px hsl(38 92% 50% / 0.15);
+    --glass-tint-rgb: 123 131 148;
+    --glass-glow-rgb: 123 131 148;
   }
 
   .dark {
@@ -103,6 +105,45 @@
     --sidebar-border: 220 25% 14%;
     --sidebar-ring: 38 92% 50%;
   }
+
+  .glass {
+    --background: 225 12% 27%;
+    --foreground: 220 12% 92%;
+
+    --card: 223 14% 24%;
+    --card-foreground: 220 12% 92%;
+
+    --popover: 223 14% 23%;
+    --popover-foreground: 220 12% 92%;
+
+    --primary: 220 14% 90%;
+    --primary-foreground: 222 16% 16%;
+
+    --secondary: 222 12% 31%;
+    --secondary-foreground: 220 12% 90%;
+
+    --muted: 222 12% 30%;
+    --muted-foreground: 220 8% 70%;
+
+    --accent: 212 12% 72%;
+    --accent-foreground: 222 16% 16%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 10% 42%;
+    --input: 220 10% 35%;
+    --ring: 212 16% 74%;
+
+    --sidebar-background: 224 14% 18%;
+    --sidebar-foreground: 220 12% 90%;
+    --sidebar-primary: 212 12% 72%;
+    --sidebar-primary-foreground: 222 16% 16%;
+    --sidebar-accent: 223 13% 27%;
+    --sidebar-accent-foreground: 220 12% 90%;
+    --sidebar-border: 220 10% 30%;
+    --sidebar-ring: 212 16% 74%;
+  }
 }
 
 @layer base {
@@ -113,6 +154,26 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  html.glass body {
+    background-image:
+      radial-gradient(circle at 20% 10%, rgb(var(--glass-tint-rgb) / 0.42), transparent 40%),
+      radial-gradient(circle at 80% 0%, rgb(var(--glass-tint-rgb) / 0.35), transparent 45%),
+      radial-gradient(circle at 50% 100%, hsl(226 18% 22% / 0.65), transparent 50%),
+      linear-gradient(145deg, hsl(225 12% 27%), hsl(223 11% 23%));
+    background-attachment: fixed;
+  }
+
+  html.glass .bg-card,
+  html.glass [data-radix-popper-content-wrapper] > * {
+    background-color: rgb(var(--glass-tint-rgb) / 0.20) !important;
+    border-color: rgb(var(--glass-tint-rgb) / 0.28) !important;
+    box-shadow:
+      0 10px 30px hsl(222 35% 7% / 0.35),
+      inset 0 1px 0 rgb(var(--glass-glow-rgb) / 0.22);
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
   }
 
   h1, h2, h3, h4, h5, h6 {

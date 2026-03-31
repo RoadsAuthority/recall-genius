@@ -1,8 +1,8 @@
 
 import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,13 +11,23 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useTheme } from "next-themes";
-import { User, Bell, Shield, Loader2, Moon, Sun, Monitor } from "lucide-react";
+import { User, Bell, Shield, Loader2, Moon, Sun, Monitor, Sparkles } from "lucide-react";
 
 const Profile = () => {
+    const GLASS_TINT_STORAGE_KEY = "glassTintColor";
+    const GLASS_TINT_PRESETS = [
+        { name: "Slate", value: "#7B8394" },
+        { name: "Storm", value: "#5F6B7A" },
+        { name: "Indigo", value: "#6F78A8" },
+        { name: "Teal", value: "#5F8F8A" },
+        { name: "Violet", value: "#7E6E9E" },
+        { name: "Graphite", value: "#4D545F" },
+    ] as const;
     const { user } = useAuth();
     const { theme, setTheme, resolvedTheme } = useTheme();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [glassTint, setGlassTint] = useState("#7b8394");
 
     const [profile, setProfile] = useState({
         full_name: "",
@@ -39,8 +49,8 @@ const Profile = () => {
             setLoading(true);
 
             const [profileRes, settingsRes] = await Promise.all([
-                supabase.from("profiles").select("*").eq("id", user.id).maybeSingle(),
-                supabase.from("notification_settings").select("*").eq("user_id", user.id).maybeSingle()
+                apiRequest<{ data: any }>(`/api/profile/${encodeURIComponent(user.id)}`),
+                apiRequest<{ data: any }>(`/api/notification-settings/${encodeURIComponent(user.id)}`),
             ]);
 
             if (profileRes.data) {
@@ -67,20 +77,36 @@ const Profile = () => {
         fetchProfileData();
     }, [user]);
 
+    useEffect(() => {
+        const saved = localStorage.getItem(GLASS_TINT_STORAGE_KEY);
+        const valid = saved && /^#[0-9a-fA-F]{6}$/.test(saved) ? saved : "#7b8394";
+        setGlassTint(valid);
+    }, []);
+
+    const applyGlassTint = (hex: string) => {
+        const normalized = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#7b8394";
+        localStorage.setItem(GLASS_TINT_STORAGE_KEY, normalized);
+        const raw = normalized.replace("#", "");
+        const r = Number.parseInt(raw.slice(0, 2), 16);
+        const g = Number.parseInt(raw.slice(2, 4), 16);
+        const b = Number.parseInt(raw.slice(4, 6), 16);
+        const root = document.documentElement;
+        root.style.setProperty("--glass-tint-rgb", `${r} ${g} ${b}`);
+        root.style.setProperty("--glass-glow-rgb", `${r} ${g} ${b}`);
+    };
+
     const handleSaveProfile = async () => {
         if (!user) return;
         setSaving(true);
 
         try {
-            const { error } = await supabase
-                .from("profiles")
-                .update({
+            await apiRequest<{ data: any }>(`/api/profile/${encodeURIComponent(user.id)}`, {
+                method: "PUT",
+                body: JSON.stringify({
                     full_name: profile.full_name,
                     phone_number: profile.phone_number
-                })
-                .eq("id", user.id);
-
-            if (error) throw error;
+                }),
+            });
             toast.success("Profile updated successfully");
         } catch (error) {
             toast.error("Failed to update profile");
@@ -94,17 +120,15 @@ const Profile = () => {
         setSaving(true);
 
         try {
-            const { error } = await supabase
-                .from("notification_settings")
-                .update({
+            await apiRequest<{ data: any }>(`/api/notification-settings/${encodeURIComponent(user.id)}`, {
+                method: "PUT",
+                body: JSON.stringify({
                     email_enabled: notifications.email_enabled,
                     phone_enabled: notifications.phone_enabled,
                     reminder_frequency: notifications.reminder_frequency,
                     daily_reminder_count: notifications.reminder_frequency === "daily" ? notifications.daily_reminder_count : 2,
-                })
-                .eq("user_id", user.id);
-
-            if (error) throw error;
+                }),
+            });
             toast.success("Notification settings updated");
         } catch (error) {
             toast.error("Failed to update notification settings");
@@ -120,14 +144,13 @@ const Profile = () => {
         setUpgrading(true);
 
         try {
-            const { data, error } = await supabase.functions.invoke("create-paystack-checkout", {
-                body: {
+            const data = await apiRequest<{ authorization_url?: string }>("/api/billing/create-checkout", {
+                method: "POST",
+                body: JSON.stringify({
                     plan: "premium",
                     returnUrl: `${window.location.origin}/profile`,
-                }
+                }),
             });
-
-            if (error) throw error;
             if (data?.authorization_url) {
                 window.location.assign(data.authorization_url as string);
             } else {
@@ -284,27 +307,72 @@ const Profile = () => {
                                 )}
                             </CardTitle>
                             <CardDescription>
-                                Choose light, dark, or system theme. Premium feature.
+                                Choose light, dark, system, or glass theme. Premium feature.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 rounded-xl border border-white/20 dark:border-white/10 bg-white/40 dark:bg-white/5 backdrop-blur-md p-2 shadow-sm">
                                 {[
                                     { value: "light", label: "Light", icon: Sun },
                                     { value: "dark", label: "Dark", icon: Moon },
                                     { value: "system", label: "System", icon: Monitor },
+                                    { value: "glass", label: "Glass", icon: Sparkles },
                                 ].map(({ value, label, icon: Icon }) => (
                                     <Button
                                         key={value}
-                                        variant={theme === value ? "secondary" : "outline"}
+                                        variant="ghost"
                                         size="sm"
                                         onClick={() => profile.plan_type === "premium" && setTheme(value)}
                                         disabled={profile.plan_type !== "premium"}
-                                        className="gap-1.5"
+                                        className={`gap-1.5 rounded-lg border transition-all duration-200 ${
+                                            theme === value
+                                                ? "bg-white/70 dark:bg-white/20 border-white/50 dark:border-white/20 shadow-sm"
+                                                : "bg-transparent border-transparent hover:bg-white/50 dark:hover:bg-white/10"
+                                        }`}
                                     >
                                         <Icon className="h-3.5 w-3.5" />
                                         {label}
                                     </Button>
+                                ))}
+                            </div>
+                            <div className="mt-3 flex items-center gap-3">
+                                <Label htmlFor="glass-tint" className="text-xs text-muted-foreground min-w-[76px]">
+                                    Glass tint
+                                </Label>
+                                <input
+                                    id="glass-tint"
+                                    type="color"
+                                    value={glassTint}
+                                    disabled={profile.plan_type !== "premium"}
+                                    onChange={(e) => {
+                                        const next = e.target.value;
+                                        setGlassTint(next);
+                                        applyGlassTint(next);
+                                    }}
+                                    className="h-8 w-11 rounded border border-border bg-transparent p-0.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                                />
+                                <span className="text-xs text-muted-foreground font-mono">{glassTint.toUpperCase()}</span>
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <span className="text-[11px] text-muted-foreground">Presets:</span>
+                                {GLASS_TINT_PRESETS.map((preset) => (
+                                    <button
+                                        key={preset.value}
+                                        type="button"
+                                        aria-label={`Set glass tint to ${preset.name}`}
+                                        title={`${preset.name} (${preset.value})`}
+                                        disabled={profile.plan_type !== "premium"}
+                                        onClick={() => {
+                                            setGlassTint(preset.value);
+                                            applyGlassTint(preset.value);
+                                        }}
+                                        className={`h-6 w-6 rounded-full border transition-transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed ${
+                                            glassTint.toLowerCase() === preset.value.toLowerCase()
+                                                ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
+                                                : ""
+                                        }`}
+                                        style={{ backgroundColor: preset.value }}
+                                    />
                                 ))}
                             </div>
                             {profile.plan_type !== "premium" && (

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/lib/apiClient";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Definition {
   id: string;
@@ -44,6 +45,7 @@ interface Concept {
 
 const Definitions = () => {
   const { isPremium } = useProfile();
+  const { user } = useAuth();
   const [definitions, setDefinitions] = useState<any[]>([]);
   const [concepts, setConcepts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,26 +54,22 @@ const Definitions = () => {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
-      // Fetch definitions and concepts with subject names
-      const [defRes, conRes, subRes] = await Promise.all([
-        supabase.from("definitions").select("*").eq("user_id", user.user.id),
-        supabase.from("concepts").select("*").eq("user_id", user.user.id),
-        supabase
-          .from("subjects")
-          .select("id, name")
-          .eq("user_id", user.user.id),
-      ]);
+      const response = await apiRequest<{
+        data: { definitions: any[]; concepts: any[]; subjects: any[] };
+      }>(`/api/definitions-concepts?user_id=${encodeURIComponent(user.id)}`);
 
-      const subjectMap = (subRes.data || []).reduce((acc: any, sub: any) => {
+      const subjectMap = (response.data.subjects || []).reduce((acc: any, sub: any) => {
         acc[sub.id] = sub.name;
         return acc;
       }, {});
 
-      if (defRes.data) {
-        const withSubject = defRes.data.map((d: any) => ({
+      if (response.data.definitions) {
+        const withSubject = response.data.definitions.map((d: any) => ({
           ...d,
           subject_name: subjectMap[d.subject_id] || "Unknown",
         }));
@@ -86,8 +84,8 @@ const Definitions = () => {
           }),
         );
       }
-      if (conRes.data) {
-        const withSubject = conRes.data.map((c: any) => ({
+      if (response.data.concepts) {
+        const withSubject = response.data.concepts.map((c: any) => ({
           ...c,
           subject_name: subjectMap[c.subject_id] || "Unknown",
         }));
@@ -105,7 +103,7 @@ const Definitions = () => {
     };
 
     fetchData();
-  }, []);
+  }, [user]);
 
   const filteredDefinitions = definitions.filter(
     (d) =>

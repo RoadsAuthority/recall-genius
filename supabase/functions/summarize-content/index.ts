@@ -10,8 +10,17 @@ serve(async (req: Request) => {
 
     try {
         const { content } = await req.json();
-        const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-        if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY is not configured");
+        const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+        const OLLAMA_BASE_URL = Deno.env.get("OLLAMA_BASE_URL");
+        const OLLAMA_MODEL = Deno.env.get("OLLAMA_MODEL") ?? "llama3.1:8b";
+        const useOllama = Boolean(OLLAMA_BASE_URL);
+        const AI_URL = useOllama
+            ? `${OLLAMA_BASE_URL!.replace(/\/+$/, "")}/v1/chat/completions`
+            : GEMINI_API_KEY
+                ? `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key=${encodeURIComponent(GEMINI_API_KEY)}`
+                : "";
+        const AI_MODEL = useOllama ? OLLAMA_MODEL : "gemini-1.5-flash";
+        if (!useOllama && !GEMINI_API_KEY) throw new Error("OLLAMA_BASE_URL or GEMINI_API_KEY is not configured");
 
         if (!content || typeof content !== "string") {
             return new Response(JSON.stringify({ error: "No content provided" }), {
@@ -20,14 +29,11 @@ serve(async (req: Request) => {
             });
         }
 
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch(AI_URL, {
             method: "POST",
-            headers: {
-                Authorization: `Bearer ${GROQ_API_KEY}`,
-                "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile",
+                model: AI_MODEL,
                 messages: [
                     {
                         role: "system",
@@ -43,8 +49,8 @@ serve(async (req: Request) => {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            console.error("Groq error:", response.status, errorData);
-            throw new Error(`Groq error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
+            console.error("AI provider error:", response.status, errorData);
+            throw new Error(`AI provider error: ${response.status} - ${errorData.error?.message || JSON.stringify(errorData)}`);
         }
 
         const data = await response.json();

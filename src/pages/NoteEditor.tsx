@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import AppLayout from "@/components/AppLayout";
@@ -9,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { ArrowLeft, Save, Loader2, Sparkles, Download, Upload } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Sparkles, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { EDITOR_CONFIG } from "@/lib/config";
 import { exportNoteToMarkdown, exportNoteToText } from "@/lib/export";
 import { extractTextFromPdf } from "@/lib/pdf";
+import { apiRequest } from "@/lib/apiClient";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,15 +32,6 @@ import {
 import { Package, Lock, FileQuestion } from "lucide-react";
 
 async function getGenerateQuestionsErrorMessage(e: unknown): Promise<string> {
-  try {
-    if (e instanceof FunctionsHttpError && e.context && typeof (e.context as Response).json === "function") {
-      const body = await (e.context as Response).json();
-      const msg = (body as { error?: string })?.error;
-      if (msg) return msg;
-    }
-  } catch (_) {
-    /* ignore */
-  }
   return e instanceof Error ? e.message : "Failed to generate questions. Check your connection and try again.";
 }
 
@@ -79,34 +69,29 @@ const NoteEditor = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [importingPdf, setImportingPdf] = useState(false);
+  const [isAiRailOpen, setIsAiRailOpen] = useState(true);
 
   useEffect(() => {
     if (!noteId) return;
 
     const fetchNote = async () => {
-      const { data: note } = await supabase
-        .from("notes")
-        .select("title, subject_id, created_at")
-        .eq("id", noteId)
-        .maybeSingle();
+      const response = await apiRequest<{
+        data: {
+          title: string;
+          subject_id: string;
+          created_at: string;
+          blocks: { content: string; block_order: number }[];
+        };
+      }>(`/api/notes/${encodeURIComponent(noteId)}`);
 
+      const note = response.data;
       if (note) {
         setTitle(note.title);
         setSubjectId(note.subject_id);
-        if (note.created_at) {
-          setLastSaved(new Date(note.created_at));
+        if (note.created_at) setLastSaved(new Date(note.created_at));
+        if (Array.isArray(note.blocks) && note.blocks.length > 0) {
+          setContent(note.blocks.map((b) => b.content).join("\n\n"));
         }
-      }
-
-      // Load existing blocks
-      const { data: blocks } = await supabase
-        .from("note_blocks")
-        .select("content, block_order")
-        .eq("note_id", noteId)
-        .order("block_order", { ascending: true });
-
-      if (blocks && blocks.length > 0) {
-        setContent(blocks.map((b) => b.content).join("\n\n"));
       }
 
       setLoading(false);
@@ -157,13 +142,6 @@ const NoteEditor = () => {
 
       try {
         // Update note title
-        const { error: noteError } = await supabase
-          .from("notes")
-          .update({ title: title.trim() })
-          .eq("id", noteId);
-
-        if (noteError) throw noteError;
-
         // Split content into blocks (by double newline or single newline for paragraphs)
         const paragraphs = content
           .split(/\n\s*\n/)
@@ -177,24 +155,13 @@ const NoteEditor = () => {
           return;
         }
 
-        // Delete existing blocks for this note
-        await supabase.from("note_blocks").delete().eq("note_id", noteId);
-
-        // Insert new blocks
-        const blocksToInsert = paragraphs.map((p, i) => ({
-          note_id: noteId,
-          content: p,
-          block_order: i,
-          confidence_score: 0,
-          next_review: new Date().toISOString(),
-        }));
-
-        const { data: insertedBlocks, error } = await supabase
-          .from("note_blocks")
-          .insert(blocksToInsert)
-          .select("id, content");
-
-        if (error) throw error;
+        const saveResponse = await apiRequest<{
+          data: { inserted_blocks: { id: string; content: string }[] };
+        }>(`/api/notes/${encodeURIComponent(noteId)}/content`, {
+          method: "PUT",
+          body: JSON.stringify({ title: title.trim(), blocks: paragraphs }),
+        });
+        const insertedBlocks = saveResponse.data.inserted_blocks;
 
         // Extract and save definitions automatically
         const definitionsToInsert = [];
@@ -221,7 +188,7 @@ const NoteEditor = () => {
               if (seenTerms.has(termKey)) break;
               seenTerms.add(termKey);
               definitionsToInsert.push({
-                user_id: (await supabase.auth.getUser()).data.user?.id,
+                user_id: user?.id,
                 subject_id: subjectId,
                 term: match[1].trim(),
                 definition: match[2].trim(),
@@ -235,15 +202,13 @@ const NoteEditor = () => {
         if (definitionsToInsert.length > 0) {
           // Delete old definitions for these blocks to avoid duplicates on resave
           const blockIds = insertedBlocks.map((b) => b.id);
-          await supabase
-            .from("definitions")
-            .delete()
-            .in("source_block_id", blockIds);
-
-          const { error: defError } = await supabase
-            .from("definitions")
-            .insert(definitionsToInsert);
-          if (defError) console.error("Error saving definitions:", defError);
+          await apiRequest<{ ok: boolean }>("/api/definitions/replace", {
+            method: "POST",
+            body: JSON.stringify({
+              block_ids: blockIds,
+              definitions: definitionsToInsert,
+            }),
+          });
         }
 
         if (!silent) {
@@ -253,30 +218,18 @@ const NoteEditor = () => {
         // Generate questions via edge function (available on Free + Premium)
         if (insertedBlocks && insertedBlocks.length > 0) {
           try {
-            const response = await supabase.functions.invoke(
-              "generate-questions",
-              {
-                body: {
-                  blocks: insertedBlocks.map((b) => ({
-                    id: b.id,
-                    content: b.content,
-                  })),
-                },
-              },
-            );
-
-            if (response.error) throw response.error;
-
-            const results = response.data;
+            const results = await apiRequest<any[]>("/api/ai/generate-questions", {
+              method: "POST",
+              body: JSON.stringify({
+                blocks: insertedBlocks.map((b) => ({
+                  id: b.id,
+                  content: b.content,
+                })),
+              }),
+            });
             if (Array.isArray(results)) {
               // Delete old questions for these blocks
               const blockIds = insertedBlocks.map((b) => b.id);
-              await supabase
-                .from("recall_questions")
-                .delete()
-                .in("block_id", blockIds);
-
-              // Insert new questions
               const questionsToInsert = results.flatMap(
                 (r: { block_id: string; questions: string[] }) =>
                   r.questions.map((q: string) => ({
@@ -290,9 +243,13 @@ const NoteEditor = () => {
                 : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
 
               if (limitedQuestions.length > 0) {
-                await supabase
-                  .from("recall_questions")
-                  .insert(limitedQuestions);
+                await apiRequest<{ ok: boolean }>("/api/recall-questions/replace", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    block_ids: blockIds,
+                    questions: limitedQuestions,
+                  }),
+                });
                 if (!silent) {
                   toast.success(
                     `${limitedQuestions.length} recall questions generated!`,
@@ -328,13 +285,10 @@ const NoteEditor = () => {
     setGeneratingQuestions(true);
     toast.loading("Generating questions with AI...");
     try {
-      const { data: blocks, error: blocksError } = await supabase
-        .from("note_blocks")
-        .select("id, content")
-        .eq("note_id", noteId)
-        .order("block_order", { ascending: true });
-
-      if (blocksError) throw blocksError;
+      const noteResponse = await apiRequest<{
+        data: { blocks: { id: string; content: string }[] };
+      }>(`/api/notes/${encodeURIComponent(noteId)}`);
+      const blocks = noteResponse.data.blocks;
       if (!blocks || blocks.length === 0) {
         toast.dismiss();
         toast.error("Save the note first so we have blocks to generate questions from.");
@@ -342,13 +296,10 @@ const NoteEditor = () => {
         return;
       }
 
-      const response = await supabase.functions.invoke("generate-questions", {
-        body: { blocks: blocks.map((b) => ({ id: b.id, content: b.content })) },
+      const results = await apiRequest<any[]>("/api/ai/generate-questions", {
+        method: "POST",
+        body: JSON.stringify({ blocks: blocks.map((b) => ({ id: b.id, content: b.content })) }),
       });
-
-      if (response.error) throw response.error;
-
-      const results = response.data;
       if (!Array.isArray(results)) {
         toast.dismiss();
         toast.error("Could not generate questions. Try again.");
@@ -357,7 +308,6 @@ const NoteEditor = () => {
       }
 
       const blockIds = blocks.map((b) => b.id);
-      await supabase.from("recall_questions").delete().in("block_id", blockIds);
 
       const questionsToInsert = results.flatMap(
         (r: { block_id: string; questions: string[] }) =>
@@ -372,7 +322,13 @@ const NoteEditor = () => {
         : questionsToInsert.slice(0, FREE_QUIZ_QUESTION_LIMIT);
 
       if (limitedQuestions.length > 0) {
-        await supabase.from("recall_questions").insert(limitedQuestions);
+        await apiRequest<{ ok: boolean }>("/api/recall-questions/replace", {
+          method: "POST",
+          body: JSON.stringify({
+            block_ids: blockIds,
+            questions: limitedQuestions,
+          }),
+        });
         toast.dismiss();
         toast.success(`${limitedQuestions.length} recall questions generated from your notes.`);
       } else {
@@ -413,8 +369,7 @@ const NoteEditor = () => {
     if (!selection || !noteId || !subjectId) return;
 
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not authenticated");
+      if (!user) throw new Error("Not authenticated");
 
       // We need to find which block this concept belongs to (optional, but good for context)
       // For now, we'll just save it without block_id if it's too complex to map back from a large textarea
@@ -424,15 +379,16 @@ const NoteEditor = () => {
         .substring(0, 50);
       const description = selection.text;
 
-      const { error } = await supabase.from("concepts").insert({
-        user_id: user.user.id,
-        subject_id: subjectId,
-        type,
-        term,
-        description,
+      await apiRequest<{ ok: boolean }>("/api/concepts", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: user.id,
+          subject_id: subjectId,
+          type,
+          term,
+          description,
+        }),
       });
-
-      if (error) throw error;
 
       toast.success(`Saved as ${type}`);
       setSelection(null);
@@ -451,14 +407,10 @@ const NoteEditor = () => {
     toast.loading("Generating AI summary...");
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "summarize-content",
-        {
-          body: { content },
-        },
-      );
-
-      if (error) throw error;
+      const data = await apiRequest<{ summary: string }>("/api/ai/summarize-content", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
 
       toast.dismiss();
       toast.success("AI Summary", {
@@ -468,8 +420,7 @@ const NoteEditor = () => {
     } catch (err: any) {
       toast.dismiss();
       console.error("Summarization error:", err);
-      const errorMessage =
-        err.context?.error || err.message || "AI summarization failed";
+      const errorMessage = err instanceof Error ? err.message : "AI summarization failed";
       toast.error(errorMessage);
     }
   };
@@ -478,11 +429,7 @@ const NoteEditor = () => {
     if (!content.trim() || content.length < 100 || !noteId || !subjectId)
       return;
 
-    // Ensure authenticated session before calling any Edge Function
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) {
+    if (!user) {
       toast.error("Please sign in to generate study tools.");
       return;
     }
@@ -494,11 +441,10 @@ const NoteEditor = () => {
 
     // 1. Summary
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "summarize-content",
-        { body: { content } },
-      );
-      if (error) throw error;
+      const data = await apiRequest<{ summary?: string }>("/api/ai/summarize-content", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
       if (data?.summary) successCount++;
     } catch (err) {
       console.error("summarize-content error:", err);
@@ -509,29 +455,24 @@ const NoteEditor = () => {
 
     // 3. Flashcards
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-flashcards",
-        { body: { content } },
-      );
-      if (error) throw error;
+      const data = await apiRequest<{ flashcards?: { question: string; answer: string }[] }>("/api/ai/generate-flashcards", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
       if (data?.flashcards?.length) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (supabase as any)
-          .from("flashcards")
-          .delete()
-          .eq("note_id", noteId);
-        const { data: userData } = await supabase.auth.getUser();
-        if (userData.user) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (supabase as any).from("flashcards").insert(
-            data.flashcards.map((f: { question: string; answer: string }) => ({
-              user_id: userData.user!.id,
-              subject_id: subjectId,
+        if (user) {
+          await apiRequest<{ ok: boolean }>("/api/flashcards/replace", {
+            method: "POST",
+            body: JSON.stringify({
               note_id: noteId,
-              question: f.question,
-              answer: f.answer,
-            })),
-          );
+              flashcards: data.flashcards.map((f: { question: string; answer: string }) => ({
+                user_id: user.id,
+                subject_id: subjectId,
+                question: f.question,
+                answer: f.answer,
+              })),
+            }),
+          });
           successCount++;
         }
       }
@@ -546,7 +487,7 @@ const NoteEditor = () => {
         description: "Summary and flashcards are ready.",
       });
     } else {
-      toast.error("Generation failed. Check your Groq quota and try again.");
+      toast.error("Generation failed. Check your AI service setup and try again.");
     }
   };
 
@@ -555,22 +496,12 @@ const NoteEditor = () => {
 
     toast.loading(`Generating AI explanation (${level})...`);
 
-    const { data, error } = await supabase.functions.invoke("explain-concept", {
-      body: { term: selection.text, level },
+    const data = await apiRequest<{ explanation?: string; error?: string }>("/api/ai/explain-concept", {
+      method: "POST",
+      body: JSON.stringify({ term: selection.text, level, user_id: user?.id, subject_id: subjectId }),
     });
 
     toast.dismiss();
-
-    if (error) {
-      const msg =
-        (data as { error?: string } | null)?.error ||
-        (error as { context?: { error?: string } })?.context?.error ||
-        (error as Error).message ||
-        "AI explanation failed.";
-      console.error("AI explanation error:", error);
-      toast.error(msg);
-      return;
-    }
 
     if (data?.explanation) {
       toast.success("AI Explanation", {
@@ -590,11 +521,10 @@ const NoteEditor = () => {
     setGeneratingStudyPack(true);
     toast.loading("Generating study pack...");
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-study-pack",
-        { body: { content } }
-      );
-      if (error) throw error;
+      const data = await apiRequest<any>("/api/ai/generate-study-pack", {
+        method: "POST",
+        body: JSON.stringify({ content })
+      });
       if (!data || (!data.summary && !data.key_concepts?.length && !data.flashcards?.length)) {
         throw new Error("No study pack content returned");
       }
@@ -623,26 +553,19 @@ const NoteEditor = () => {
     if (!content.trim() || !noteId || !subjectId) return;
 
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "generate-flashcards",
-        {
-          body: { content },
-        },
-      );
-
-      if (error) throw error;
+      const data = await apiRequest<any>("/api/ai/generate-flashcards", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      });
 
       const flashcards = data.flashcards;
       if (Array.isArray(flashcards) && flashcards.length > 0) {
         // Delete old flashcards for this note to avoid duplicates on auto-update
-        await supabase.from("flashcards").delete().eq("note_id", noteId);
-
-        const { user } = await supabase.auth.getUser();
-        if (!user.user) return;
+        if (!user) return;
 
         const flashcardsToInsert = flashcards.map(
           (f: { question: string; answer: string }) => ({
-            user_id: user.user.id,
+            user_id: user.id,
             subject_id: subjectId,
             note_id: noteId,
             question: f.question,
@@ -650,10 +573,13 @@ const NoteEditor = () => {
           }),
         );
 
-        const { error: insertError } = await supabase
-          .from("flashcards")
-          .insert(flashcardsToInsert);
-        if (insertError) throw insertError;
+        await apiRequest<{ ok: boolean }>("/api/flashcards/replace", {
+          method: "POST",
+          body: JSON.stringify({
+            note_id: noteId,
+            flashcards: flashcardsToInsert,
+          }),
+        });
 
         console.log(`Generated ${flashcardsToInsert.length} flashcards`);
       }
@@ -706,6 +632,63 @@ const NoteEditor = () => {
     }
   };
 
+  const renderAiWorkspace = (compact = false) => (
+    <div className="rounded-lg border bg-accent/5 p-3 sm:p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-accent" />
+            AI Workspace
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Generate study help directly from this note. Free plan includes summary, flashcards, and up to {FREE_QUIZ_QUESTION_LIMIT} quiz questions.
+          </p>
+        </div>
+        {!isPremium && (
+          <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-background border text-muted-foreground">
+            Free Plan
+          </span>
+        )}
+      </div>
+
+      <div className={`grid gap-2 ${compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-3"}`}>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGenerateStudyTools}
+          disabled={!content.trim() || content.length < 100 || generatingStudyTools}
+          className="justify-start gap-2 bg-background"
+        >
+          {generatingStudyTools ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {generatingStudyTools ? "Generating..." : "Summary + Flashcards"}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRegenerateQuestions}
+          disabled={generatingQuestions || !noteId}
+          className="justify-start gap-2 bg-background"
+        >
+          {generatingQuestions ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileQuestion className="h-4 w-4" />}
+          {generatingQuestions ? "Generating..." : "Generate Quiz Questions"}
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={isPremium ? handleGenerateStudyPack : undefined}
+          disabled={!isPremium || !content.trim() || content.length < 50 || generatingStudyPack}
+          className="justify-start gap-2 bg-background"
+        >
+          {generatingStudyPack ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+          {generatingStudyPack ? "Generating..." : "Study Pack"}
+          {!isPremium && <Lock className="h-3.5 w-3.5 ml-auto text-muted-foreground" />}
+        </Button>
+      </div>
+    </div>
+  );
+
   if (loading) {
     return (
       <AppLayout>
@@ -724,7 +707,7 @@ const NoteEditor = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-4 max-w-4xl mx-auto min-w-0">
+      <div className="max-w-6xl mx-auto min-w-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
             <Button
@@ -821,97 +804,6 @@ const NoteEditor = () => {
                 Import a PDF and convert it to text in this note (up to 50 pages / 15MB).
               </TooltipContent>
             </Tooltip>
-            {/* Study Pack — Premium only (Smart summaries) */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={isPremium ? handleGenerateStudyPack : undefined}
-                    disabled={
-                      !isPremium ||
-                      !content.trim() ||
-                      content.length < 50 ||
-                      generatingStudyPack
-                    }
-                    className="gap-2 text-accent border-accent/20 hover:bg-accent/5"
-                  >
-                    {generatingStudyPack ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Package className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">
-                      {generatingStudyPack ? "Generating..." : "Study Pack"}
-                    </span>
-                    {!isPremium && <Lock className="h-3 w-3 opacity-70" />}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {isPremium
-                  ? "Smart summaries, key concepts, flashcards, practice questions"
-                  : "Premium — upgrade for Study Pack (smart summaries)"}
-              </TooltipContent>
-            </Tooltip>
-            {/* Premium AI: Generate Study Tools */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleGenerateStudyTools}
-                    disabled={
-                      !content.trim() ||
-                      content.length < 100 ||
-                      generatingStudyTools
-                    }
-                    className="gap-2 text-accent border-accent/20 hover:bg-accent/5"
-                  >
-                    {generatingStudyTools ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">
-                      {generatingStudyTools
-                        ? "Generating..."
-                        : "Generate Study Tools"}
-                    </span>
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                Generate summary and flashcards from this note.
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRegenerateQuestions}
-                    disabled={generatingQuestions || !noteId}
-                    className="gap-2"
-                  >
-                    {generatingQuestions ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <FileQuestion className="h-4 w-4" />
-                    )}
-                    <span className="hidden sm:inline">
-                      {generatingQuestions ? "Generating..." : "Generate questions"}
-                    </span>
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                AI study questions from saved blocks. Save first, then click.
-              </TooltipContent>
-            </Tooltip>
             <Button
               onClick={() => saveNote(false)}
               disabled={saving}
@@ -927,21 +819,23 @@ const NoteEditor = () => {
           </div>
         </div>
 
-        <div className="bg-card rounded-lg border p-1 relative">
-          <Textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onSelect={handleTextSelection}
-            placeholder="Start typing your notes here...&#10;&#10;Each paragraph (separated by a blank line) becomes a block that generates recall questions.&#10;&#10;Tip: Write clear, focused paragraphs. Each paragraph will be converted into reviewable blocks with AI-generated questions."
-            className="min-h-[60vh] border-0 focus-visible:ring-0 resize-none text-base leading-relaxed font-mono"
-          />
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_20rem] gap-4 items-start">
+          <div className="space-y-4 min-w-0">
+            <div className="bg-card rounded-lg border p-1 relative">
+              <Textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onSelect={handleTextSelection}
+                placeholder="Start typing your notes here...&#10;&#10;Each paragraph (separated by a blank line) becomes a block that generates recall questions.&#10;&#10;Tip: Write clear, focused paragraphs. Each paragraph will be converted into reviewable blocks with AI-generated questions."
+                className="min-h-[60vh] border-0 focus-visible:ring-0 resize-none text-base leading-relaxed font-mono"
+              />
 
-          {selection && (
-            <div
-              className="absolute z-50 bg-popover text-popover-foreground border rounded-md shadow-lg p-1 flex flex-col gap-1 w-48"
-              style={{ top: "10px", right: "10px" }} // Fixed position for simplicity in textarea
-            >
+              {selection && (
+                <div
+                  className="absolute z-50 bg-popover text-popover-foreground border rounded-md shadow-lg p-1 flex flex-col gap-1 w-48"
+                  style={{ top: "10px", right: "10px" }} // Fixed position for simplicity in textarea
+                >
               <div className="text-[10px] font-bold px-2 py-1 text-muted-foreground uppercase">
                 Save Selection As:
               </div>
@@ -1007,21 +901,53 @@ const NoteEditor = () => {
               >
                 Cancel
               </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <span>
-              Separate paragraphs with blank lines. Each paragraph becomes a
-              review block with auto-generated questions.
-            </span>
+            <div className="lg:hidden">
+              {renderAiWorkspace()}
+            </div>
+
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-accent" />
+                <span>
+                  Separate paragraphs with blank lines. Each paragraph becomes a
+                  review block with auto-generated questions.
+                </span>
+              </div>
+              <div className="hidden sm:flex items-center gap-4 text-xs">
+                <span>Ctrl+S to save</span>
+              </div>
+            </div>
           </div>
-          <div className="hidden sm:flex items-center gap-4 text-xs">
-            <span>Ctrl+S to save</span>
-          </div>
+
+          <aside className="hidden lg:block sticky top-20">
+            <div className="flex justify-end mb-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsAiRailOpen((prev) => !prev)}
+                aria-label={isAiRailOpen ? "Collapse AI rail" : "Expand AI rail"}
+                className="h-8 w-8"
+              >
+                {isAiRailOpen ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </Button>
+            </div>
+            {isAiRailOpen ? (
+              renderAiWorkspace(true)
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full justify-center gap-2 bg-background"
+                onClick={() => setIsAiRailOpen(true)}
+              >
+                <Sparkles className="h-4 w-4" />
+                AI
+              </Button>
+            )}
+          </aside>
         </div>
 
         {/* Study Pack result dialog — scrollable body */}

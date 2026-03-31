@@ -69,10 +69,19 @@ serve(async (req: Request) => {
       console.warn("generate-questions plan detection failed:", planError);
     }
 
-    const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
-    if (!GROQ_API_KEY) {
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    const OLLAMA_BASE_URL = Deno.env.get("OLLAMA_BASE_URL");
+    const OLLAMA_MODEL = Deno.env.get("OLLAMA_MODEL") ?? "llama3.1:8b";
+    const useOllama = Boolean(OLLAMA_BASE_URL);
+    const AI_URL = useOllama
+      ? `${OLLAMA_BASE_URL!.replace(/\/+$/, "")}/v1/chat/completions`
+      : GEMINI_API_KEY
+        ? `https://generativelanguage.googleapis.com/v1beta/openai/chat/completions?key=${encodeURIComponent(GEMINI_API_KEY)}`
+        : "";
+    const AI_MODEL = useOllama ? OLLAMA_MODEL : "gemini-1.5-flash";
+    if (!useOllama && !GEMINI_API_KEY) {
       return jsonResponse(
-        { error: "GROQ_API_KEY is not configured. Set it in Supabase: Project Settings → Edge Functions → Secrets (or: supabase secrets set GROQ_API_KEY=your_key)." },
+        { error: "OLLAMA_BASE_URL or GEMINI_API_KEY is not configured. Set one in Supabase Edge Function secrets." },
         500
       );
     }
@@ -85,14 +94,11 @@ serve(async (req: Request) => {
       `Block ${i + 1} (ID: ${b.id}): "${b.content}"`
     ).join("\n");
 
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const response = await fetch(AI_URL, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: AI_MODEL,
         messages: [
           {
             role: "system",
@@ -128,8 +134,8 @@ Use the exact block_id string from each "Block N (ID: xxx)" line in the input.`
         return jsonResponse({ error: "Rate limit exceeded, please try again later." }, 429);
       }
       const t = await response.text();
-      console.error("Groq error:", response.status, t);
-      return jsonResponse({ error: `Groq API error (${response.status})`, details: t.slice(0, 200) }, 500);
+      console.error("AI provider error:", response.status, t);
+      return jsonResponse({ error: `AI provider error (${response.status})`, details: t.slice(0, 200) }, 500);
     }
 
     const data = await response.json();
@@ -140,7 +146,8 @@ Use the exact block_id string from each "Block N (ID: xxx)" line in the input.`
 
     let parsed: unknown;
     try {
-      parsed = JSON.parse(contentText);
+      const cleaned = contentText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+      parsed = JSON.parse(cleaned);
     } catch {
       return jsonResponse({ error: "Invalid JSON from AI" }, 500);
     }

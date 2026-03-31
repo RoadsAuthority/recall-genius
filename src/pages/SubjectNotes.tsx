@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useNotes, useCreateNote, useDeleteNote } from "@/hooks/useNotes";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/apiClient";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,12 +22,9 @@ const SubjectNotes = () => {
   const { data: subject } = useQuery({
     queryKey: ["subject", subjectId],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("subjects")
-        .select("name")
-        .eq("id", subjectId)
-        .maybeSingle();
-      return data;
+      if (!subjectId) return null;
+      const response = await apiRequest<{ data: { name: string } | null }>(`/api/subjects/${encodeURIComponent(subjectId)}`);
+      return response.data;
     },
     enabled: !!subjectId,
   });

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Brain, LayoutDashboard, BookOpen, LogOut, User, Bell, Trophy, Lock, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,10 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     if (!user) return;
 
     const fetchNotifications = async () => {
-      const { data } = await supabase
-        .from("notifications")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(5);
+      const response = await apiRequest<{ data: any[] }>(
+        `/api/notifications?user_id=${encodeURIComponent(user.id)}&limit=5`
+      );
+      const data = response.data;
 
       if (data) {
         setNotifications(data);
@@ -41,34 +39,21 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
     };
 
     fetchNotifications();
-
-    const channel = supabase
-      .channel("notifications-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          setNotifications(prev => [payload.new, ...prev].slice(0, 5));
-          setUnreadCount(prev => prev + 1);
-          toast.info(payload.new.title, { description: payload.new.message });
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          console.warn("Notifications realtime subscription issue:", status, err?.message ?? err);
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const pollId = setInterval(() => {
+      fetchNotifications().catch(() => {});
+    }, 15000);
+    return () => clearInterval(pollId);
   }, [user]);
 
   const markAllRead = async () => {
     if (!user) return;
-    await supabase.from("notifications").update({ read: true }).eq("user_id", user.id);
+    await apiRequest<{ ok: boolean }>("/api/notifications/mark-all-read", {
+      method: "POST",
+      body: JSON.stringify({ user_id: user.id }),
+    });
     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
     setUnreadCount(0);
+    toast.success("Notifications marked as read");
   };
 
   const navItems = [

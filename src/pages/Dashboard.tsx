@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, BookOpen, Brain, Layers, ArrowRight, Trash2, Search, Sparkles } from "lucide-react";
 import { DashboardSkeleton } from "@/components/LoadingSkeletons";
-import { AIStudyToolsSection } from "@/components/AIStudyToolsSection";
 
 
 const Dashboard = () => {
@@ -169,12 +168,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* AI Study Tools — active for Premium */}
-        <AIStudyToolsSection
-          title="AI Study Tools"
-          description="Paste notes and generate AI summaries & study questions. Premium unlocks flashcards + study packs."
-          compact
-        />
       </div>
     </AppLayout>
   );

@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
+import { apiRequest } from "@/lib/apiClient";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -87,22 +87,11 @@ const ExamMode = () => {
   }, [user]);
 
   const fetchSubjects = async () => {
-    const { data: subjectsData } = await supabase
-      .from("subjects")
-      .select("id, name")
-      .eq("user_id", user?.id);
-
-    const withCount = await Promise.all(
-      (subjectsData || []).map(async (s) => {
-        const { count } = await supabase
-          .from("note_blocks")
-          .select("*, notes!inner(subject_id)", { count: "exact", head: true })
-          .eq("notes.subject_id", s.id);
-        return { ...s, note_count: count ?? 0 };
-      })
+    if (!user?.id) return;
+    const response = await apiRequest<{ data: { id: string; name: string; note_count: number }[] }>(
+      `/api/subjects?user_id=${encodeURIComponent(user.id)}`
     );
-
-    setSubjects(withCount);
+    setSubjects(response.data || []);
     setLoading(false);
   };
 
@@ -115,12 +104,8 @@ const ExamMode = () => {
     setScopeOpen(true);
     setNotesLoading(true);
     try {
-      const { data: notes } = await supabase
-        .from("notes")
-        .select("id, title")
-        .eq("subject_id", subjectId)
-        .order("title");
-      setNotesInSubject(notes || []);
+      const response = await apiRequest<{ data: NoteOption[] }>(`/api/notes?subject_id=${encodeURIComponent(subjectId)}`);
+      setNotesInSubject((response.data || []).map((n) => ({ id: n.id, title: n.title })));
     } catch (_) {
       setNotesInSubject([]);
     } finally {
@@ -140,40 +125,21 @@ const ExamMode = () => {
     setSubjectName(name);
 
     try {
-      let query = supabase
-        .from("note_blocks")
-        .select("id, content, note_id, notes!inner(subject_id, subjects!inner(user_id))")
-        .eq("notes.subjects.user_id", user.id);
-
-      if (noteId) {
-        query = query.eq("note_id", noteId);
-      } else {
-        query = query.eq("notes.subject_id", subjectId);
-      }
-
-      const { data: blocks, error } = await query;
-
-      if (error) throw error;
-
+      const query = new URLSearchParams({
+        user_id: user.id,
+        practice: "true",
+        limit: String(EXAM_CONFIG.MAX_ITEMS * 3),
+      });
+      if (noteId) query.set("note_id", noteId);
+      else query.set("subject_id", subjectId);
+      const response = await apiRequest<{ data: ExamItem[] }>(`/api/review-items?${query.toString()}`);
+      const blocks = response.data;
       if (!blocks || blocks.length === 0) {
         toast.error("No content in this subject yet. Add notes first.");
         setSessionLoading(false);
         return;
       }
-
-      const blockIds = blocks.map((b) => b.id);
-      const { data: questions } = await supabase
-        .from("recall_questions")
-        .select("id, question, block_id")
-        .in("block_id", blockIds);
-
-      const examItems: ExamItem[] = blocks.map((block) => ({
-        block_id: block.id,
-        block_content: block.content,
-        questions: (questions || []).filter((q) => q.block_id === block.id),
-      }));
-
-      const shuffled = shuffle(examItems).slice(0, EXAM_CONFIG.MAX_ITEMS);
+      const shuffled = shuffle(blocks).slice(0, EXAM_CONFIG.MAX_ITEMS);
       setItems(shuffled);
       setSessionLoading(false);
     } catch (e) {

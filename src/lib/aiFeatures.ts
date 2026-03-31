@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/lib/apiClient";
 
 /** AI feature types for future implementation */
 export type AIFeatureType =
@@ -28,13 +28,10 @@ export async function callAIFeature(
   params: CallAIFeatureParams
 ): Promise<CallAIFeatureResult> {
   try {
-    const { data, error } = await supabase.functions.invoke("call-ai-feature", {
-      body: { feature: params.feature, payload: params.payload ?? {} },
+    const data = await apiRequest<any>("/api/ai/call-ai-feature", {
+      method: "POST",
+      body: JSON.stringify({ feature: params.feature, payload: params.payload ?? {} }),
     });
-
-    if (error) {
-      return { ok: false, error: error.message, reason: "request_failed" };
-    }
 
     if (data?.ok === false) {
       return {

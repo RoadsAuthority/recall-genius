@@ -1,7 +1,8 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "next-themes";
+import { ThemeProvider, useTheme } from "next-themes";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
@@ -31,10 +32,38 @@ const queryClient = new QueryClient({
   },
 });
 
+const GLASS_TINT_STORAGE_KEY = "glassTintColor";
+
+function hexToRgbTuple(hex: string): string | null {
+  const raw = hex.trim().replace("#", "");
+  const valid = /^[0-9a-fA-F]{6}$/.test(raw);
+  if (!valid) return null;
+  const r = Number.parseInt(raw.slice(0, 2), 16);
+  const g = Number.parseInt(raw.slice(2, 4), 16);
+  const b = Number.parseInt(raw.slice(4, 6), 16);
+  return `${r} ${g} ${b}`;
+}
+
+const GlassTintSync = () => {
+  const { theme } = useTheme();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const stored = localStorage.getItem(GLASS_TINT_STORAGE_KEY) || "#7b8394";
+    const rgbTuple = hexToRgbTuple(stored) ?? "123 131 148";
+    root.style.setProperty("--glass-tint-rgb", rgbTuple);
+    root.style.setProperty("--glass-glow-rgb", rgbTuple);
+    root.style.setProperty("--glass-theme-active", theme === "glass" ? "1" : "0");
+  }, [theme]);
+
+  return null;
+};
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystemStorage>
+      <ThemeProvider attribute="class" defaultTheme="system" themes={["light", "dark", "glass"]} enableSystem>
+        <GlassTintSync />
         <TooltipProvider>
           <Toaster />
           <Sonner />

@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, FileText, Layers, HelpCircle, Package, Lock, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiRequest } from "@/lib/apiClient";
 import { useProfile } from "@/hooks/useProfile";
 import { toast } from "sonner";
 
@@ -98,8 +98,10 @@ export function AIStudyToolsSection({
               ? "generate-study-pack"
               : "generate-study-pack";
 
-      const { data, error: fnError } = await supabase.functions.invoke(fn, { body });
-      if (fnError) throw fnError;
+      const data = await apiRequest<any>(`/api/ai/${fn}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
       if (data?.error) throw new Error(data.error);
       if (tool === "summary") {
         setResult({ summary: (data as { summary?: string })?.summary ?? "" });
